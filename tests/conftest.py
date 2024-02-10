@@ -8,14 +8,14 @@ import pytest
 
 @dataclass
 class DatasetExample:
-    models: Path
+    model: Path
     resources: dict[str, str]
     cwd: Path
 
 
 @pytest.fixture
-def examples():
-    examples = []
+def example_datasets() -> dict[str, DatasetExample]:
+    examples = {}
     for dir in (Path(__file__).parent.parent / "examples").iterdir():
         if not dir.is_dir() or (dir / ".ignore").exists():
             continue
@@ -32,11 +32,11 @@ def examples():
                 ):
                     resources[file.stem[len(dsid) + 1 :]] = str(file)
 
-            examples.append(
-                DatasetExample(
-                    models=model,
-                    resources=resources,
-                    cwd=dir,
-                )
+            full_dsid = f"{dir.name}/{dsid}"
+            assert full_dsid not in examples
+            examples[full_dsid] = DatasetExample(
+                model=model,
+                resources=resources,
+                cwd=dir,
             )
     return examples

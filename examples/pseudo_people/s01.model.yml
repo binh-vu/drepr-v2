@@ -1,4 +1,4 @@
-version: '1'
+version: "2"
 resources: csv
 attributes:
   id: $[1:][0]
@@ -22,15 +22,18 @@ alignments:
   - type: dimension
     value: id:0 <-> zipcode:0
 semantic_model:
-  data_nodes:
-    id: schema:Person:1--drepr:uri
-    name: schema:Person:1--schema:name
-    phone: schema:Person:1--schema:telephone
-    street: schema:PostalAddress:1--schema:streetAddress
-    city: schema:PostalAddress:1--schema:addressLocality
-    state: schema:PostalAddress:1--schema:addressRegion
-    zipcode: schema:PostalAddress:1--schema:postalCode
-  relations:
-    - schema:Person:1--schema:address--schema:PostalAddress:1
+  schema:Person:1:
+    properties:
+      - [drepr:uri, id]
+      - [schema:name, name]
+      - [schema:telephone, phone]
+    links:
+      - [schema:address, schema:PostalAddress:1]
+  schema:PostalAddress:1:
+    properties:
+      - [schema:streetAddress, street]
+      - [schema:addressLocality, city]
+      - [schema:addressRegion, state]
+      - [schema:postalCode, zipcode]
   prefixes:
     schema: http://schema.org/

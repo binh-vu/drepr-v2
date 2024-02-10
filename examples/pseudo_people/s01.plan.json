@@ -1,0 +1,63 @@
+[
+  {
+    "class_id": "schema:PostalAddress:1",
+    "subject": {
+      "attr": "street"
+    },
+    "data_props": [
+      {
+        "predicate": 3,
+        "attr": "street",
+        "is_optional": true
+      },
+      {
+        "predicate": 4,
+        "attr": "city",
+        "is_optional": true
+      },
+      {
+        "predicate": 5,
+        "attr": "state",
+        "is_optional": true
+      },
+      {
+        "predicate": 6,
+        "attr": "zipcode",
+        "is_optional": true
+      }
+    ],
+    "literal_props": [],
+    "object_props": [],
+    "buffered_object_props": []
+  },
+  {
+    "class_id": "schema:Person:1",
+    "subject": {
+      "attr": "id",
+      "is_optional": true
+    },
+    "data_props": [
+      {
+        "predicate": 1,
+        "attr": "name",
+        "is_optional": true
+      },
+      {
+        "predicate": 2,
+        "attr": "phone",
+        "is_optional": true
+      }
+    ],
+    "literal_props": [],
+    "object_props": [
+      {
+        "predicate": 7,
+        "attr": "street",
+        "class_id": "schema:Person:1",
+        "is_optional": true,
+        "is_target_optional": true
+      }
+    ],
+    "buffered_object_props": []
+  }
+]

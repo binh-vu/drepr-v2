@@ -28,10 +28,10 @@ class ClassesMapExecutionPlan:
     class_map_plans: list[ClassMapPlan]
 
     @staticmethod
-    def create(desc: DRepr, edges_optional: dict[EdgeId, bool]):
+    def create(desc: DRepr):
         reversed_topo_orders = topological_sorting(desc.sm)
         alignments = DReprModelAlignments.create(desc)
-
+        edges_optional = {e.edge_id: not e.is_required for e in desc.sm.edges.values()}
         class_map_plans = []
 
         # find subject attribute of each class
@@ -47,7 +47,7 @@ class ClassesMapExecutionPlan:
                 ClassMapPlan.create(
                     desc,
                     class_id,
-                    class2subj[class_id],
+                    class2subj,
                     alignments,
                     edges_optional,
                     reversed_topo_orders.removed_outgoing_edges,

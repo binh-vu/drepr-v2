@@ -2,7 +2,8 @@ from collections import OrderedDict
 from dataclasses import asdict, dataclass
 from enum import Enum
 from io import StringIO
-from typing import Any, Dict, List, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
 import orjson
 from ruamel.yaml import YAML
@@ -52,7 +53,8 @@ class DRepr:
         raise InputError(f"Parsing error, get unknown version: {raw['version']}")
 
     @staticmethod
-    def parse_from_file(fpath: str) -> "DRepr":
+    def parse_from_file(fpath: Union[Path, str]) -> "DRepr":
+        fpath = str(fpath)
         if fpath.endswith(".json"):
             with open(fpath, "rb") as f:
                 return DRepr.parse(orjson.loads(f.read()))
