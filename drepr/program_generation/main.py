@@ -59,6 +59,8 @@ def gen_classplan_executor(mem: Memory, ast: AST, desc: DRepr, classplan: ClassM
     )
 
     # for each other attribute, we generate a plan for each of them.
+    for dataprop in classplan.data_props:
+        pass
 
 
 def extract_subject_value(mem: Memory, ast: AST, context: ExtractSubjectValueArgs):
