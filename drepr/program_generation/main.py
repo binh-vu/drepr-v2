@@ -52,6 +52,12 @@ class ExtractSubjectValueArgs:
     dim: int
 
 
+@dataclass
+class ExtractDataPropValueArgs:
+    classplan: ClassMapPlan
+    index: int
+
+
 def gen_classplan_executor(mem: Memory, ast: AST, desc: DRepr, classplan: ClassMapPlan):
     inner_subj_val_ast = ast.update_recursively(
         fn=partial(extract_subject_value, mem),
@@ -60,7 +66,7 @@ def gen_classplan_executor(mem: Memory, ast: AST, desc: DRepr, classplan: ClassM
 
     # for each other attribute, we generate a plan for each of them.
     for dataprop in classplan.data_props:
-        pass
+        extract_data_prop_value(mem, inner_subj_val_ast)
 
 
 def extract_subject_value(mem: Memory, ast: AST, context: ExtractSubjectValueArgs):
@@ -171,3 +177,12 @@ def extract_subject_value(mem: Memory, ast: AST, context: ExtractSubjectValueArg
         )
 
     raise NotImplementedError(step)
+
+
+def extract_data_prop_value(mem: Memory, ast: AST, context: ExtractDataPropValueArgs):
+    if context.index >= len(context.classplan.data_props):
+        return ast, context, False
+
+    data_prop = context.classplan.data_props[context.index]
+
+    # convert subject index into attr index

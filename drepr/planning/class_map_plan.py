@@ -114,7 +114,6 @@ class ClassMapPlan:
                 attribute = desc.get_attr_by_id(class2subj[e.target_id])
                 assert attribute is not None
 
-                predicate_id = e.edge_id
                 # a class node is optional if all of its properties are optional
                 is_target_optional = all(
                     edges_optional[te.edge_id]
