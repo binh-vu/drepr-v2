@@ -104,6 +104,7 @@ def gen_program(desc: DRepr, exec_plan: ClassesMapExecutionPlan, output: Output)
         for var in Var.find_by_scope(mem, varscope):
             var.delete(mem)
 
+    main_fn.linebreak()
     # we write the output to the file
     if isinstance(output, FileOutput):
         assert len(output_file) > 0
@@ -113,6 +114,7 @@ def gen_program(desc: DRepr, exec_plan: ClassesMapExecutionPlan, output: Output)
         writer.write_to_string(mem, main_fn, content)
         main_fn.return_(expr.ExprVar(content))
 
+    program.root.linebreak()
     program.root.if_(
         expr.ExprEqual(expr.ExprIdent("__name__"), expr.ExprConstant("__main__"))
     )(

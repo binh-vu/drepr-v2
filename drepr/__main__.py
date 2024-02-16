@@ -96,6 +96,7 @@ def main(
     (tmpdir / "main.py").write_text(prog)
 
     spec = importlib.util.spec_from_file_location("drepr_prog", tmpdir / "main.py")
+    assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     if outfile is not None:

@@ -64,8 +64,10 @@ def main(resource_0):
 		writer_2.write_object_property("http://schema.org/address", street_value_1_30, False, True, False)
 		
 		writer_2.end_record()
+	
 	output_31 = writer_2.write_to_string()
 	return output_31
+
 if __name__ == "__main__":
 	import sys
 	main(sys.argv[1:])
