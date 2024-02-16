@@ -1,36 +1,71 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 from functools import partial
+from pathlib import Path
 
-from codegen.models import AST, Memory, PredefinedFn, Var, expr
+from codegen.models import AST, Memory, PredefinedFn, Program, Var, VarScope, expr, stmt
+from typing_extensions import is_protocol
 
-import drepr.models.path as path
-from drepr.models.prelude import DRepr
-from drepr.planning.class_map_plan import ClassesMapExecutionPlan, ClassMapPlan
+from drepr.models.prelude import Cardinality, DRepr, OutputFormat
+from drepr.planning.class_map_plan import (
+    BlankObject,
+    BlankSubject,
+    ClassesMapExecutionPlan,
+    ClassMapPlan,
+    ExternalIDSubject,
+    InternalIDSubject,
+)
+from drepr.program_generation.alignment_fn import AlignmentFn, PathAccessor
 from drepr.program_generation.program_space import VarSpace
+from drepr.program_generation.writers import Writer
+from drepr.utils.misc import assert_not_null, assert_true
 
 
-def gen_program(desc: DRepr, exec_plan: ClassesMapExecutionPlan) -> AST:
+@dataclass
+class FileOutput:
+    fpath: Path
+    format: OutputFormat
+
+
+@dataclass
+class MemoryOutput:
+    format: OutputFormat
+
+
+Output = FileOutput | MemoryOutput
+
+
+def gen_program(desc: DRepr, exec_plan: ClassesMapExecutionPlan, output: Output) -> AST:
     """Generate a program to convert the given D-REPR to a target format"""
-    root = AST.root()
-    mem = Memory()
+    program = Program()
+    mem = program.memory
+    writer = Writer(desc, output.format)
 
     for res in desc.resources:
-        root.import_(f"drepr.readers.prelude.read_source_{res.type.value}")
+        program.root.import_(f"drepr.readers.prelude.read_source_{res.type.value}")
+        program.root.import_(writer.get_writer_clspath())
 
-    root.linebreak()
-    main_fn = root.func(
+    if isinstance(output, FileOutput):
+        output_file = [Var.create(mem, "output_file", key=VarSpace.output_file())]
+    else:
+        output_file = []
+
+    program.root.linebreak()
+    main_fn = program.root.func(
         "main",
         [
             Var.create(mem, "resource", key=VarSpace.resource(res.id))
             for res in desc.resources
-        ],
+        ]
+        + output_file,
     )
 
     for resource in desc.resources:
         var = Var.create(mem, "resource_data", key=VarSpace.resource_data(resource.id))
         main_fn.assign(
+            mem,
             var,
             expr.ExprFuncCall(
                 expr.ExprIdent(f"read_source_{resource.type.value}"),
@@ -38,151 +73,371 @@ def gen_program(desc: DRepr, exec_plan: ClassesMapExecutionPlan) -> AST:
             ),
         )
 
+    # define missing values of attributes
+    main_fn.linebreak()
+    for attr in desc.attrs:
+        if len(attr.missing_values) > 0:
+            main_fn.assign(
+                mem,
+                Var.create(
+                    mem,
+                    f"{attr.id}_missing_values",
+                    key=VarSpace.attr_missing_values(attr.id),
+                ),
+                expr.ExprConstant(attr.missing_values),
+            )
+
+    # create a writer
+    writer.create_writer(mem, main_fn)
+
     # for each class node, we generate a plan for each of them.
     for classplan in exec_plan.class_map_plans:
         main_fn.linebreak()
-        gen_classplan_executor(mem, main_fn, desc, classplan)
+        main_fn.comment(f"Transform records of class {classplan.class_id}")
 
-    return root
+        varscope = main_fn.next_var_scope()
+
+        # generate the code to execute the plan
+        gen_classplan_executor(mem, main_fn, writer, desc, classplan)
+
+        # claim the variables that aren't going to be used anymore
+        for var in Var.find_by_scope(mem, varscope):
+            var.delete(mem)
+
+    # we write the output to the file
+    if isinstance(output, FileOutput):
+        assert len(output_file) > 0
+        writer.write_to_file(mem, main_fn, expr.ExprVar(output_file[0]))
+    else:
+        content = Var.create(mem, "output", key=tuple())
+        writer.write_to_string(mem, main_fn, content)
+        main_fn.return_(expr.ExprVar(content))
+
+    return program.root
 
 
-@dataclass
-class ExtractSubjectValueArgs:
-    classplan: ClassMapPlan
-    dim: int
+def gen_classplan_executor(
+    mem: Memory, parent_ast: AST, writer: Writer, desc: DRepr, classplan: ClassMapPlan
+):
+    """Generate the code to execute the given class plan.
+    Below is the pseudo code:
 
+    1. Iterate over the subject values
+        1. If the subject is uri and it has missing values, if the uri is missing, we skip this
+           record
+        2. Begin record
+        3. Iterate over target property & value
+            1. If not target.can_have_missing_values:
+                1. Iterate over objprop values:
+                    1. Write property
+            2. Else:
+                1. If target edge is optional:
+                    iterate over objprop values:
+                        if objprop value is not missing:
+                            write  property
+                else:
+                    (1) ----
+                    has_record = False
+                    iterate over objprop values:
+                        if objprop value is not missing:
+                            has_record = True
+                            write property
+                    if not has_record:
+                        abort the record
+                    ---- (2)
+        4. End the record -- if the subject is blank node,
+            and we do not write any data, we abort, otherwise, we commit
+    """
+    ast = PathAccessor().iterate_elements(
+        mem, parent_ast, classplan.subject.attr, None, None
+    )
+    is_subj_blank = expr.ExprConstant(isinstance(classplan.subject, BlankSubject))
+    can_class_missing = (
+        any(
+            not dprop.is_optional and dprop.can_target_missing
+            for dprop in classplan.data_props
+        )
+        or any(
+            not oprop.is_optional and not oprop.can_target_missing
+            for oprop in classplan.object_props
+        )
+        or any(
+            not oprop.is_optional and not oprop.can_target_missing
+            for oprop in classplan.buffered_object_props
+        )
+    )
+    is_buffered = can_class_missing
 
-@dataclass
-class ExtractDataPropValueArgs:
-    classplan: ClassMapPlan
-    index: int
-
-
-def gen_classplan_executor(mem: Memory, ast: AST, desc: DRepr, classplan: ClassMapPlan):
-    inner_subj_val_ast = ast.update_recursively(
-        fn=partial(extract_subject_value, mem),
-        context=ExtractSubjectValueArgs(classplan, 0),
+    get_subj_val = lambda: expr.ExprVar(
+        Var.deref(
+            mem,
+            key=VarSpace.attr_value_dim(
+                classplan.subject.attr.resource_id,
+                classplan.subject.attr.id,
+                len(classplan.subject.attr.path.steps) - 1,
+            ),
+        )
     )
 
-    # for each other attribute, we generate a plan for each of them.
-    for dataprop in classplan.data_props:
-        extract_data_prop_value(mem, inner_subj_val_ast)
+    if (
+        isinstance(classplan.subject, (InternalIDSubject, ExternalIDSubject))
+        and len(classplan.subject.attr.missing_values) > 0
+    ):
+        # we know immediately that it's missing if the URI is missing
 
+        # if subject is a single value, we can't use continue
+        if ast.id == parent_ast.id:
+            # same ast because of a single value, we can't use continue
+            raise NotImplementedError()
 
-def extract_subject_value(mem: Memory, ast: AST, context: ExtractSubjectValueArgs):
-    """Geerate an nested loop that get a subject item index and value"""
-
-    subj_attr = context.classplan.subject.attr
-    dim = context.dim
-
-    if dim >= len(subj_attr.path.steps):
-        # stopping condition, we have reached the end of the path
-        return ast, context, True
-
-    if dim == 0:
-        collection = Var.deref(mem, key=VarSpace.resource_data(subj_attr.resource_id))
-    else:
-        collection = Var.deref(
-            mem,
-            key=VarSpace.attr_value_dim(subj_attr.resource_id, subj_attr.id, dim - 1),
-        )
-
-    step = subj_attr.path.steps[dim]
-    while isinstance(step, path.IndexExpr) and dim < len(subj_attr.path.steps):
-        # we do not need nested loop for index expression as we can just directly access the value
-        c1 = Var.create(
-            mem,
-            name=f"{subj_attr.id}_value_{dim}",
-            key=VarSpace.attr_value_dim(subj_attr.resource_id, subj_attr.id, dim),
-        )
-        if isinstance(step.val, path.Expr):
-            # I don't know about recursive path expression yet.
-            raise Exception(
-                f"Recursive path expression is not supported yet. Please raise a ticket to notify us for future support! Found: {step.val}"
-            )
-
-        ast.assign(
-            c1,
-            PredefinedFn.item_getter(
-                expr.ExprVar(collection), expr.ExprConstant(step.val)
-            ),
-        )
-
-        collection = c1
-        dim += 1
-        if dim == len(subj_attr.path.steps):
-            # we have reached the end of the path
-            return ast, ExtractSubjectValueArgs(context.classplan, dim), True
-        step = subj_attr.path.steps[dim]
-
-    assert not isinstance(step, path.IndexExpr), (subj_attr, step, dim)
-
-    if isinstance(step, path.RangeExpr):
-        start_var = Var.create(mem, f"start__local_ast_{ast.id}")
-        if isinstance(step.start, path.Expr):
-            # I don't know about recursive path expression yet.
-            raise Exception(
-                f"Recursive path expression is not supported yet. Please raise a ticket to notify us for future support! Found: {step.start}"
-            )
-        ast.assign(start_var, expr.ExprConstant(step.start))
-
-        end_var = Var.create(mem, f"end__local_ast_{ast.id}")
-        if step.end is None:
-            ast.assign(end_var, PredefinedFn.len(expr.ExprVar(collection)))
-        else:
-            if isinstance(step.end, path.Expr):
-                # I don't know about recursive path expression yet.
-                raise Exception(
-                    f"Recursive path expression is not supported yet. Please raise a ticket to notify us for future support! Found: {step.end}"
+        ast.if_(
+            PredefinedFn.bool_neg(
+                PredefinedFn.set_contains(
+                    expr.ExprVar(
+                        Var.deref(
+                            mem,
+                            key=VarSpace.attr_missing_values(classplan.subject.attr.id),
+                        )
+                    ),
+                    get_subj_val(),
                 )
-            ast.assign(end_var, expr.ExprConstant(step.end))
-
-        if isinstance(step.step, path.Expr):
-            # I don't know about recursive path expression yet.
-            raise Exception(
-                f"Recursive path expression is not supported yet. Please raise a ticket to notify us for future support! Found: {step.step}"
             )
-        elif step.step != 1:
-            step_var = Var.create(mem, f"step__local_ast_{ast.id}")
-            ast.assign(step_var, expr.ExprConstant(step.step))
-            expr_step_var = expr.ExprVar(step_var)
-        else:
-            expr_step_var = None
+        )(stmt.ContinueStatement())
 
-        itemindex = Var.create(
-            mem,
-            name=f"{subj_attr.id}_index_{dim}",
-            key=VarSpace.attr_index_dim(subj_attr.resource_id, subj_attr.id, dim),
+    writer.begin_record(mem, ast, get_subj_val(), is_subj_blank, is_buffered)
+
+    for dataprop in classplan.data_props:
+        ast.linebreak()
+        ast.comment(f"Retrieve value of data property: {dataprop.attr.id}")
+
+        get_dataprop_val = lambda: expr.ExprVar(
+            Var.deref(
+                mem,
+                key=VarSpace.attr_value_dim(
+                    dataprop.attr.resource_id,
+                    dataprop.attr.id,
+                    len(dataprop.attr.path.steps) - 1,
+                ),
+            )
         )
-        inner_loop_ast = ast.for_loop(
-            item=itemindex,
-            iter=PredefinedFn.range(
-                expr.ExprVar(start_var), expr.ExprVar(end_var), expr_step_var
+        is_dataprop_val_missing = lambda: PredefinedFn.set_contains(
+            expr.ExprVar(
+                Var.deref(
+                    mem,
+                    key=VarSpace.attr_missing_values(dataprop.attr.id),
+                )
+            ),
+            get_dataprop_val(),
+        )
+        if not dataprop.can_target_missing:
+            AlignmentFn(desc).align(mem, ast, dataprop.alignments)(
+                lambda ast_l0: writer.write_data_property(
+                    mem,
+                    ast_l0,
+                    expr.ExprConstant(dataprop.predicate),
+                    get_dataprop_val(),
+                    expr.ExprConstant(dataprop.datatype),
+                )
+            )
+        else:
+            if dataprop.is_optional:
+                AlignmentFn(desc).align(mem, ast, dataprop.alignments)(
+                    lambda ast00: ast00.if_(is_dataprop_val_missing())(
+                        lambda ast01: writer.write_data_property(
+                            mem,
+                            ast01,
+                            expr.ExprConstant(dataprop.predicate),
+                            get_dataprop_val(),
+                            expr.ExprConstant(dataprop.datatype),
+                        )
+                    )
+                )
+            else:
+                if dataprop.alignments_cardinality.is_star_to_many():
+                    has_dataprop_val = Var.create(
+                        mem,
+                        f"{dataprop.attr.id}_has_value_{len(dataprop.attr.path.steps) - 1}",
+                        key=VarSpace.has_attr_value_dim(
+                            dataprop.attr.resource_id,
+                            dataprop.attr.id,
+                            len(dataprop.attr.path.steps) - 1,
+                        ),
+                    )
+                    ast.assign(mem, has_dataprop_val, expr.ExprConstant(False))
+                    AlignmentFn(desc).align(mem, ast, dataprop.alignments)(
+                        lambda ast00: ast00.if_(is_dataprop_val_missing())(
+                            lambda ast01: ast01.assign(
+                                mem, has_dataprop_val, expr.ExprConstant(True)
+                            ),
+                            lambda ast02: writer.write_data_property(
+                                mem,
+                                ast02,
+                                expr.ExprConstant(dataprop.predicate),
+                                get_dataprop_val(),
+                                expr.ExprConstant(dataprop.datatype),
+                            ),
+                        )
+                    )
+                    ast.if_(PredefinedFn.bool_neg(expr.ExprVar(has_dataprop_val)))(
+                        lambda ast00: (
+                            assert_true(
+                                is_buffered,
+                                "We should only abort record if we are buffering",
+                            )
+                            and writer.abort_record(mem, ast00)
+                        )
+                    )
+                else:
+                    AlignmentFn(desc).align(mem, ast, dataprop.alignments)(
+                        lambda ast00: ast00.if_(is_dataprop_val_missing())(
+                            lambda ast01: (
+                                assert_true(
+                                    is_buffered,
+                                    "We should only abort record if we are buffering",
+                                )
+                                and writer.abort_record(mem, ast01)
+                            ),
+                        ),
+                        lambda ast10: ast10.else_()(
+                            lambda ast11: writer.write_data_property(
+                                mem,
+                                ast11,
+                                expr.ExprConstant(dataprop.predicate),
+                                get_dataprop_val(),
+                                expr.ExprConstant(dataprop.datatype),
+                            ),
+                        ),
+                    )
+
+    for objprop in classplan.object_props:
+        ast.linebreak()
+        ast.comment(f"Retrieve value of object property: {objprop.attr.id}")
+
+        get_objprop_val = lambda: Var.deref(
+            mem,
+            key=VarSpace.attr_value_dim(
+                objprop.attr.resource_id,
+                objprop.attr.id,
+                len(objprop.attr.path.steps) - 1,
             ),
         )
-        itemvalue = Var.create(
-            mem,
-            name=f"{subj_attr.id}_value_{dim}",
-            key=VarSpace.attr_value_dim(subj_attr.resource_id, subj_attr.id, dim),
+
+        if not objprop.can_target_missing:
+            AlignmentFn(desc).align(mem, ast, objprop.alignments)(
+                lambda inner_ast: writer.write_object_property(
+                    mem,
+                    inner_ast,
+                    expr.ExprConstant(objprop.predicate),
+                    expr.ExprVar(get_objprop_val()),
+                    is_subj_blank,
+                    expr.ExprConstant(isinstance(objprop, BlankObject)),
+                    expr.ExprConstant(False),
+                )
+            )
+        else:
+            if objprop.is_optional:
+                AlignmentFn(desc).align(mem, ast, objprop.alignments)(
+                    lambda inner_ast: inner_ast.if_(
+                        writer.has_written_record(
+                            mem,
+                            inner_ast,
+                            expr.ExprVar(get_objprop_val()),
+                        )
+                    )(
+                        lambda inner_ast_if: writer.write_object_property(
+                            mem,
+                            inner_ast_if,
+                            expr.ExprConstant(objprop.predicate),
+                            expr.ExprVar(get_objprop_val()),
+                            is_subj_blank,
+                            expr.ExprConstant(isinstance(objprop, BlankObject)),
+                            expr.ExprConstant(False),
+                        )
+                    )
+                )
+            else:
+                if objprop.alignments_cardinality.is_star_to_many():
+                    has_objprop_val = Var.create(
+                        mem,
+                        f"{objprop.attr.id}_has_value_{len(objprop.attr.path.steps) - 1}",
+                        key=VarSpace.has_attr_value_dim(
+                            objprop.attr.resource_id,
+                            objprop.attr.id,
+                            len(objprop.attr.path.steps) - 1,
+                        ),
+                    )
+                    ast.assign(mem, has_objprop_val, expr.ExprConstant(False))
+                    AlignmentFn(desc).align(mem, ast, objprop.alignments)(
+                        lambda ast_l0: ast_l0.if_(
+                            writer.has_written_record(
+                                mem,
+                                ast_l0,
+                                expr.ExprVar(get_objprop_val()),
+                            )
+                        )(
+                            lambda ast_l1: ast_l1.assign(
+                                mem, has_objprop_val, expr.ExprConstant(True)
+                            ),
+                            lambda ast_l1: writer.write_object_property(
+                                mem,
+                                ast_l1,
+                                expr.ExprConstant(objprop.predicate),
+                                expr.ExprVar(get_objprop_val()),
+                                is_subj_blank,
+                                expr.ExprConstant(isinstance(objprop, BlankObject)),
+                                expr.ExprConstant(False),
+                            ),
+                        )
+                    )
+                    ast.if_(PredefinedFn.bool_neg(expr.ExprVar(has_objprop_val)))(
+                        lambda ast_l0: (
+                            assert_true(
+                                is_buffered,
+                                "We should only abort record if we are buffering",
+                            )
+                            and writer.abort_record(mem, ast_l0)
+                        )
+                    )
+                else:
+                    AlignmentFn(desc).align(mem, ast, objprop.alignments)(
+                        lambda ast_l0: ast_l0.if_(
+                            writer.has_written_record(
+                                mem,
+                                ast_l0,
+                                expr.ExprVar(get_objprop_val()),
+                            )
+                        )(
+                            lambda ast_l1: writer.write_object_property(
+                                mem,
+                                ast_l1,
+                                expr.ExprConstant(objprop.predicate),
+                                expr.ExprVar(get_objprop_val()),
+                                is_subj_blank,
+                                expr.ExprConstant(isinstance(objprop, BlankObject)),
+                                expr.ExprConstant(False),
+                            )
+                        ),
+                        lambda ast_l0: ast_l0.else_()(
+                            lambda ast_l1: (
+                                assert_true(
+                                    is_buffered,
+                                    "We should only abort record if we are buffering",
+                                )
+                                and writer.abort_record(mem, ast_l1)
+                            )
+                        ),
+                    )
+
+    assert len(classplan.buffered_object_props) == 0, "Not implemented yet"
+
+    # we can end the record even if we abort it before. the end record code should handle this.
+    ast.linebreak()
+
+    if isinstance(classplan.subject, BlankSubject) and can_class_missing:
+        ast.if_(writer.is_record_empty(mem, ast))(
+            lambda ast00: writer.abort_record(mem, ast00)
         )
-        inner_loop_ast.assign(
-            itemvalue,
-            PredefinedFn.item_getter(expr.ExprVar(collection), expr.ExprVar(itemindex)),
-        )
+    else:
+        writer.end_record(mem, ast)
 
-        return (
-            inner_loop_ast,
-            ExtractSubjectValueArgs(context.classplan, dim + 1),
-            False,
-        )
-
-    raise NotImplementedError(step)
-
-
-def extract_data_prop_value(mem: Memory, ast: AST, context: ExtractDataPropValueArgs):
-    if context.index >= len(context.classplan.data_props):
-        return ast, context, False
-
-    data_prop = context.classplan.data_props[context.index]
-
-    # convert subject index into attr index
+    return ast

@@ -2,6 +2,7 @@ from .align import *
 from .attr import *
 from .drepr import *
 from .drepr_builder import *
+from .format import OutputFormat
 from .parse_v1.resource_parser import ResourceParser
 from .path import *
 from .preprocessing import *

@@ -1,12 +1,15 @@
 from __future__ import annotations
+
 import json
+
 import orjson
 import pytest
+import serde.json
 
 from drepr.models.prelude import DRepr
 from drepr.planning.class_map_plan import BlankSubject, ClassesMapExecutionPlan, Subject
 from tests.conftest import DatasetExample
-import serde.json
+
 
 @pytest.mark.parametrize("name", ["pseudo_people/s01"])
 def test_planning(name, example_datasets: dict[str, DatasetExample]):
@@ -15,7 +18,7 @@ def test_planning(name, example_datasets: dict[str, DatasetExample]):
 
     plan = ClassesMapExecutionPlan.create(model)
 
-    serplan = ([
+    serplan = [
         {
             "class_id": plan.class_id,
             "subject": subj_to_json(plan.subject),
@@ -36,29 +39,31 @@ def test_planning(name, example_datasets: dict[str, DatasetExample]):
             ],
             "object_props": [
                 {
-                    "predicate": p.predicate_id,
+                    "predicate": p.predicate,
                     "attr": p.attr.id,
                     "class_id": p.class_id,
                     "is_optional": p.is_optional,
-                    "is_target_optional": p.is_target_optional,
+                    "is_target_optional": p.can_target_missing,
                 }
                 for p in plan.object_props
             ],
             "buffered_object_props": [
                 {
-                    "predicate": p.predicate_id,
+                    "predicate": p.predicate,
                     "attr": p.attr.id,
                     "class_id": p.class_id,
                     "is_optional": p.is_optional,
-                    "is_target_optional": p.is_target_optional,
+                    "is_target_optional": p.can_target_missing,
                 }
                 for p in plan.buffered_object_props
-            ]
+            ],
         }
         for plan in plan.class_map_plans
-    ])
+    ]
 
-    assert serplan == serde.json.deser(ds.cwd / f"{ds.model.stem.split('.')[0]}.plan.json")
+    assert serplan == serde.json.deser(
+        ds.cwd / f"{ds.model.stem.split('.')[0]}.plan.json"
+    )
 
 
 def subj_to_json(subj: Subject):

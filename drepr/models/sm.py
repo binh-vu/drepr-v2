@@ -58,6 +58,9 @@ class LiteralNode:
     # you should rely on data_type to get the type of value right. The parser may be wrong about it.
     value: Any
     data_type: Optional[DataType] = None
+    # whether to always generate values of the literal node, even if all the other non-literal nodes are missing
+    # however, if the parent class node has URI and the URI is missing, we won't generate the literal node
+    always_generate: bool = False
 
 
 @dataclass

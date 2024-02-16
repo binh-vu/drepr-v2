@@ -5,6 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Debug D-REPR",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "drepr",
+            "args": [
+                "examples/pseudo_people/s01.model.yml",
+                "default=examples/pseudo_people/s01.default.csv",
+                "--progfile",
+                "examples/pseudo_people/s01.py"
+            ]
+        },
+        {
             "name": "pytest",
             "type": "debugpy",
             "request": "launch",

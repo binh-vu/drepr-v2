@@ -17,8 +17,10 @@ from drepr.models.prelude import (
     LiteralNode,
     NodeId,
 )
+from drepr.models.sm import DataType
 from drepr.planning.drepr_model_alignments import DReprModelAlignments
 from drepr.planning.topological_sorting import topological_sorting
+from drepr.utils.misc import assert_not_null
 
 
 @dataclass
@@ -32,7 +34,9 @@ class ClassesMapExecutionPlan:
         reversed_topo_orders = topological_sorting(desc.sm)
         alignments = DReprModelAlignments.create(desc)
         edges_optional = {e.edge_id: not e.is_required for e in desc.sm.edges.values()}
+        edges_has_missing_values: dict[EdgeId, bool] = {}
         class_map_plans = []
+        class2plan = {}
 
         # find subject attribute of each class
         class2subj = {}
@@ -41,18 +45,111 @@ class ClassesMapExecutionPlan:
                 desc, class_id, class2subj, alignments
             )
 
+        # figure out if an edge may contain missing values
+        n_miss_edges = -1
+        while n_miss_edges != len(edges_has_missing_values):
+            n_miss_edges = len(edges_has_missing_values)
+            for e in desc.sm.edges.values():
+                if e.edge_id in edges_has_missing_values:
+                    continue
+                v = desc.sm.nodes[e.target_id]
+                if isinstance(v, DataNode):
+                    edges_has_missing_values[e.edge_id] = (
+                        len(
+                            assert_not_null(
+                                desc.get_attr_by_id(v.attr_id)
+                            ).missing_values
+                        )
+                        > 0
+                    )
+                elif isinstance(v, ClassNode):
+                    if any(
+                        ve.edge_id not in edges_has_missing_values
+                        for ve in desc.sm.iter_outgoing_edges(v.node_id)
+                        if not reversed_topo_orders.removed_outgoing_edges[ve.edge_id]
+                    ):
+                        continue
+
+                    if v.is_blank_node(desc.sm):
+                        # it can have missing values when:
+                        # (1) at least one edge is mandatory & the edge have missing values
+                        # (2) all edges are optional and all of them have missing values
+                        have_missing_values = False
+
+                        # (1) at least one edge is mandatory & the edge have missing values
+                        for ve in desc.sm.iter_outgoing_edges(v.node_id):
+                            if reversed_topo_orders.removed_outgoing_edges[ve.edge_id]:
+                                continue
+
+                            if (
+                                not edges_optional[ve.edge_id]
+                                and edges_has_missing_values[ve.edge_id]
+                            ):
+                                have_missing_values = True
+                                break
+
+                        # (2) all edges are optional and all of them have missing values
+                        if not have_missing_values:
+                            if all(
+                                edges_optional[ve.edge_id]
+                                and edges_has_missing_values[ve.edge_id]
+                                for ve in desc.sm.iter_outgoing_edges(v.node_id)
+                                if not reversed_topo_orders.removed_outgoing_edges[
+                                    ve.edge_id
+                                ]
+                            ):
+                                have_missing_values = True
+                    else:
+                        # it can have missing values when:
+                        # (1) at least one edge is mandatory & the edge have missing values
+                        # (2) the URI edge have missing values
+                        have_missing_values = False
+
+                        # (1) at least one edge is mandatory & the edge have missing values
+                        for ve in desc.sm.iter_outgoing_edges(v.node_id):
+                            if reversed_topo_orders.removed_outgoing_edges[ve.edge_id]:
+                                continue
+
+                            if (
+                                not edges_optional[ve.edge_id]
+                                and edges_has_missing_values[ve.edge_id]
+                            ):
+                                have_missing_values = True
+                                break
+
+                        # (2) the URI edge have missing values
+                        if (
+                            len(
+                                assert_not_null(
+                                    desc.get_attr_by_id(class2subj[e.target_id])
+                                ).missing_values
+                            )
+                            > 0
+                        ):
+                            have_missing_values = True
+
+                    edges_has_missing_values[e.edge_id] = have_missing_values
+                else:
+                    assert isinstance(v, LiteralNode)
+                    edges_has_missing_values[e.edge_id] = False
+
+        assert len(edges_has_missing_values) == len(desc.sm.edges) - sum(
+            reversed_topo_orders.removed_outgoing_edges.values()
+        ), f"{len(edges_has_missing_values)} == {len(desc.sm.edges)} - {sum(reversed_topo_orders.removed_outgoing_edges.values())}"
+
         # generate plans
         for class_id in reversed_topo_orders.topo_order:
-            class_map_plans.append(
-                ClassMapPlan.create(
-                    desc,
-                    class_id,
-                    class2subj,
-                    alignments,
-                    edges_optional,
-                    reversed_topo_orders.removed_outgoing_edges,
-                )
+            classplan = ClassMapPlan.create(
+                desc,
+                class_id,
+                class2subj,
+                alignments,
+                edges_optional,
+                edges_has_missing_values,
+                reversed_topo_orders.removed_outgoing_edges,
             )
+            class2plan[class_id] = classplan
+            class_map_plans.append(classplan)
 
         return ClassesMapExecutionPlan(class_map_plans)
 
@@ -72,8 +169,9 @@ class ClassMapPlan:
         class_id: NodeId,
         class2subj: dict[NodeId, AttrId],
         inference: DReprModelAlignments,
-        edges_optional: dict[int, bool],
-        removed_edges: dict[int, bool],
+        edges_optional: dict[EdgeId, bool],
+        edges_missing_values: dict[EdgeId, bool],
+        removed_edges: dict[EdgeId, bool],
     ):
         subj = class2subj[class_id]
         uri_dnode: Optional[DataNode] = None
@@ -97,28 +195,32 @@ class ClassMapPlan:
                 assert attribute is not None
 
                 if e.get_abs_iri(desc.sm) != DREPR_URI:
+                    alignments = inference.get_alignments(subj, target.attr_id)
                     data_props.append(
                         DataProp(
-                            alignments=inference.get_alignments(subj, target.attr_id),
-                            predicate=e.edge_id,
+                            alignments=alignments,
+                            alignments_cardinality=inference.estimate_cardinality(
+                                alignments
+                            ),
+                            predicate=e.get_abs_iri(desc.sm),
                             attr=attribute,
                             is_optional=edges_optional[e.edge_id],
                             missing_values=set(attribute.missing_values),
+                            datatype=(
+                                target.data_type.value
+                                if target.data_type is not None
+                                else None
+                            ),
                         )
                     )
             elif isinstance(target, LiteralNode):
                 literal_props.append(
-                    LiteralProp(predicate=e.edge_id, value=target.value)
+                    LiteralProp(predicate=e.get_abs_iri(desc.sm), value=target.value)
                 )
             elif isinstance(target, ClassNode):
                 attribute = desc.get_attr_by_id(class2subj[e.target_id])
                 assert attribute is not None
 
-                # a class node is optional if all of its properties are optional
-                is_target_optional = all(
-                    edges_optional[te.edge_id]
-                    for te in desc.sm.iter_outgoing_edges(e.target_id)
-                )
                 alignments = inference.get_alignments(subj, attribute.id)
 
                 if target.is_blank_node(desc.sm):
@@ -128,10 +230,10 @@ class ClassMapPlan:
                             alignments
                         ),
                         alignments=alignments,
-                        predicate_id=e.edge_id,
+                        predicate=e.get_abs_iri(desc.sm),
                         class_id=class_id,
                         is_optional=edges_optional[e.edge_id],
-                        is_target_optional=is_target_optional,
+                        can_target_missing=edges_missing_values[e.edge_id],
                     )
                 else:
                     prop = IDObject(
@@ -140,10 +242,10 @@ class ClassMapPlan:
                             alignments
                         ),
                         alignments=alignments,
-                        predicate_id=e.edge_id,
+                        predicate=e.get_abs_iri(desc.sm),
                         class_id=class_id,
                         is_optional=edges_optional[e.edge_id],
-                        is_target_optional=is_target_optional,
+                        can_target_missing=edges_missing_values[e.edge_id],
                         missing_values=set(attribute.missing_values),
                     )
 
@@ -286,15 +388,21 @@ Subject: TypeAlias = BlankSubject | InternalIDSubject | ExternalIDSubject
 @dataclass
 class DataProp:
     alignments: list[Alignment]
-    predicate: EdgeId
+    alignments_cardinality: Cardinality
+    predicate: str
     attr: Attr
     is_optional: bool
     missing_values: set[MISSING_VALUE_TYPE]
+    datatype: Optional[str]
+
+    @property
+    def can_target_missing(self):
+        return len(self.missing_values) > 0
 
 
 @dataclass
 class LiteralProp:
-    predicate: EdgeId
+    predicate: str
     value: Any
 
 
@@ -303,11 +411,11 @@ class BlankObject:
     attr: Attr
     alignments: list[Alignment]
     alignments_cardinality: Cardinality
-    predicate_id: EdgeId
+    predicate: str
     class_id: NodeId
     is_optional: bool
-    # if the target class is optional
-    is_target_optional: bool
+    # whether an instance of the target class can be missing
+    can_target_missing: bool
 
 
 @dataclass
@@ -315,11 +423,11 @@ class IDObject:
     attr: Attr
     alignments: list[Alignment]
     alignments_cardinality: Cardinality
-    predicate_id: EdgeId
+    predicate: str
     class_id: NodeId
     is_optional: bool
-    # if the target class is optional
-    is_target_optional: bool
+    # whether an instance of the target class can be missing
+    can_target_missing: bool
     missing_values: set[MISSING_VALUE_TYPE]
 
 
