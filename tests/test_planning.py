@@ -43,7 +43,7 @@ def test_planning(name, example_datasets: dict[str, DatasetExample]):
                     "attr": p.attr.id,
                     "class_id": p.class_id,
                     "is_optional": p.is_optional,
-                    "is_target_optional": p.can_target_missing,
+                    "can_target_missing": p.can_target_missing,
                 }
                 for p in plan.object_props
             ],
@@ -53,7 +53,7 @@ def test_planning(name, example_datasets: dict[str, DatasetExample]):
                     "attr": p.attr.id,
                     "class_id": p.class_id,
                     "is_optional": p.is_optional,
-                    "is_target_optional": p.can_target_missing,
+                    "can_target_missing": p.can_target_missing,
                 }
                 for p in plan.buffered_object_props
             ],
@@ -61,6 +61,9 @@ def test_planning(name, example_datasets: dict[str, DatasetExample]):
         for plan in plan.class_map_plans
     ]
 
+    # serde.json.ser(
+    #     serplan, ds.cwd / f"{ds.model.stem.split('.')[0]}.plan.json", indent=2
+    # )
     assert serplan == serde.json.deser(
         ds.cwd / f"{ds.model.stem.split('.')[0]}.plan.json"
     )

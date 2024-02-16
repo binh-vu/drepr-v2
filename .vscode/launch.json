@@ -5,6 +5,16 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python Debugger: Current File with Arguments",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": [
+                "examples/pseudo_people/s01.default.csv"
+            ]
+        },
+        {
             "name": "Debug D-REPR",
             "type": "debugpy",
             "request": "launch",

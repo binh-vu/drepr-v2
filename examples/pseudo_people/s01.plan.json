@@ -6,22 +6,22 @@
     },
     "data_props": [
       {
-        "predicate": 3,
+        "predicate": "http://schema.org/streetAddress",
         "attr": "street",
         "is_optional": true
       },
       {
-        "predicate": 4,
+        "predicate": "http://schema.org/addressLocality",
         "attr": "city",
         "is_optional": true
       },
       {
-        "predicate": 5,
+        "predicate": "http://schema.org/addressRegion",
         "attr": "state",
         "is_optional": true
       },
       {
-        "predicate": 6,
+        "predicate": "http://schema.org/postalCode",
         "attr": "zipcode",
         "is_optional": true
       }
@@ -38,12 +38,12 @@
     },
     "data_props": [
       {
-        "predicate": 1,
+        "predicate": "http://schema.org/name",
         "attr": "name",
         "is_optional": true
       },
       {
-        "predicate": 2,
+        "predicate": "http://schema.org/telephone",
         "attr": "phone",
         "is_optional": true
       }
@@ -51,11 +51,11 @@
     "literal_props": [],
     "object_props": [
       {
-        "predicate": 7,
+        "predicate": "http://schema.org/address",
         "attr": "street",
         "class_id": "schema:Person:1",
         "is_optional": true,
-        "is_target_optional": true
+        "can_target_missing": false
       }
     ],
     "buffered_object_props": []

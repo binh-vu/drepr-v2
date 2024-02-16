@@ -120,7 +120,7 @@ def gen_program(desc: DRepr, exec_plan: ClassesMapExecutionPlan, output: Output)
     )(
         stmt.ImportStatement("sys"),
         stmt.SingleExprStatement(
-            expr.ExprFuncCall(expr.ExprIdent("main"), [expr.ExprIdent("sys.argv[1:]")])
+            expr.ExprFuncCall(expr.ExprIdent("main"), [expr.ExprIdent("*sys.argv[1:]")])
         ),
     )
     return program.root
@@ -158,6 +158,8 @@ def gen_classplan_executor(
         4. End the record -- if the subject is blank node,
             and we do not write any data, we abort, otherwise, we commit
     """
+    writer.begin_class(mem, parent_ast, classplan.class_id)
+
     ast = PathAccessor().iterate_elements(
         mem, parent_ast, classplan.subject.attr, None, None
     )

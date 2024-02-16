@@ -36,6 +36,15 @@ class Writer:
             [subj],
         )
 
+    def begin_class(self, mem: Memory, prog: AST, class_uri: str):
+        prog.expr(
+            expr.ExprMethodCall(
+                expr.ExprVar(Var.deref(mem, key=VarSpace.writer())),
+                "begin_class",
+                [expr.ExprConstant(class_uri)],
+            )
+        )
+
     def begin_record(
         self,
         mem: Memory,

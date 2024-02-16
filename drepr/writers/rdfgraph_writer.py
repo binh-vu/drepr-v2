@@ -4,7 +4,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-from rdflib import BNode, Graph, Literal, Namespace, URIRef
+from rdflib import RDF, BNode, Graph, Literal, Namespace, URIRef
 
 from drepr.models.drepr import DRepr
 from drepr.models.sm import NodeId
@@ -19,25 +19,27 @@ class RDFGraphWriter(StreamClassWriter):
 
         self.written_records: set[str] = set()
         self.subj: Optional[URIRef | BNode] = None
+        self.current_class_uri: URIRef = URIRef("")
         self.buffer: list[tuple[URIRef, URIRef | BNode | Literal]] = []
         self.is_buffered: bool = False
         self.has_subj_data: bool = False
 
-    # def begin_class(self, class_id: NodeId):
-    #     self.desc.sm.nodes[class_id]
-
-    # def end_class(self):
-    #     pass
+    def begin_class(self, class_uri: str):
+        self.current_class_uri = URIRef(class_uri)
 
     def has_written_record(self, subj: str) -> bool:
         return subj in self.written_records
 
     def begin_record(self, subj: str, is_blank: bool, is_buffered: bool):
         if is_blank:
-            self.subj = URIRef(subj)
-        else:
             self.subj = BNode(subj)
-        self.buffer = []
+        else:
+            self.subj = URIRef(subj)
+
+        if is_buffered:
+            self.buffer = [(RDF.type, self.current_class_uri)]
+        else:
+            self.g.add((self.subj, RDF.type, self.current_class_uri))
         self.is_buffered = is_buffered
 
     def end_record(self):
