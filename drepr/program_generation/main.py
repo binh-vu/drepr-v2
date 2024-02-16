@@ -113,6 +113,14 @@ def gen_program(desc: DRepr, exec_plan: ClassesMapExecutionPlan, output: Output)
         writer.write_to_string(mem, main_fn, content)
         main_fn.return_(expr.ExprVar(content))
 
+    program.root.if_(
+        expr.ExprEqual(expr.ExprIdent("__name__"), expr.ExprConstant("__main__"))
+    )(
+        stmt.ImportStatement("sys"),
+        stmt.SingleExprStatement(
+            expr.ExprFuncCall(expr.ExprIdent("main"), [expr.ExprIdent("sys.argv[1:]")])
+        ),
+    )
     return program.root
 
 
@@ -191,7 +199,7 @@ def gen_classplan_executor(
             raise NotImplementedError()
 
         ast.if_(
-            PredefinedFn.bool_neg(
+            expr.ExprNegation(
                 PredefinedFn.set_contains(
                     expr.ExprVar(
                         Var.deref(
@@ -278,7 +286,7 @@ def gen_classplan_executor(
                             ),
                         )
                     )
-                    ast.if_(PredefinedFn.bool_neg(expr.ExprVar(has_dataprop_val)))(
+                    ast.if_(expr.ExprNegation(expr.ExprVar(has_dataprop_val)))(
                         lambda ast00: (
                             assert_true(
                                 is_buffered,
@@ -389,7 +397,7 @@ def gen_classplan_executor(
                             ),
                         )
                     )
-                    ast.if_(PredefinedFn.bool_neg(expr.ExprVar(has_objprop_val)))(
+                    ast.if_(expr.ExprNegation(expr.ExprVar(has_objprop_val)))(
                         lambda ast_l0: (
                             assert_true(
                                 is_buffered,

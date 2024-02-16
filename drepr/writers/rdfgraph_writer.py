@@ -4,22 +4,24 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-from rdflib import BNode, Graph, Literal, URIRef
+from rdflib import BNode, Graph, Literal, Namespace, URIRef
 
 from drepr.models.drepr import DRepr
 from drepr.models.sm import NodeId
 from drepr.writers.base import StreamClassWriter
 
 
-@dataclass
 class RDFGraphWriter(StreamClassWriter):
-    # desc: DRepr
-    g: Graph = field(default_factory=Graph)
-    written_records: set[str] = field(default_factory=set)
-    subj: Optional[URIRef | BNode] = None
-    buffer: list[tuple[URIRef, URIRef | BNode | Literal]] = field(default_factory=list)
-    is_buffered: bool = False
-    has_subj_data: bool = False
+    def __init__(self, prefixes: dict[str, str]):
+        self.g: Graph = Graph()
+        for prefix, ns in prefixes.items():
+            self.g.bind(prefix, Namespace(ns))
+
+        self.written_records: set[str] = set()
+        self.subj: Optional[URIRef | BNode] = None
+        self.buffer: list[tuple[URIRef, URIRef | BNode | Literal]] = []
+        self.is_buffered: bool = False
+        self.has_subj_data: bool = False
 
     # def begin_class(self, class_id: NodeId):
     #     self.desc.sm.nodes[class_id]

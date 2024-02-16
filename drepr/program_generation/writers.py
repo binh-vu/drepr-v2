@@ -23,7 +23,10 @@ class Writer:
         ast.assign(
             mem,
             Var.create(mem, "writer", key=VarSpace.writer()),
-            expr.ExprFuncCall(expr.ExprIdent(writer_clsname), []),
+            expr.ExprFuncCall(
+                expr.ExprIdent(writer_clsname),
+                [expr.ExprConstant(self.desc.sm.prefixes)],
+            ),
         )
 
     def has_written_record(self, mem: Memory, prog: AST, subj: expr.Expr):

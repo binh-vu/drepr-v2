@@ -4,7 +4,7 @@ from drepr.writers.rdfgraph_writer import RDFGraphWriter
 def main(resource_0):
 	resource_data_1 = read_source_csv(resource_0)
 	
-	writer_2 = RDFGraphWriter()
+	writer_2 = RDFGraphWriter({"schema": "http://schema.org/", "drepr": "https://purl.org/drepr/1.0/", "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdfs": "http://www.w3.org/2000/01/rdf-schema#", "owl": "http://www.w3.org/2002/07/owl#"})
 	
 	# Transform records of class schema:PostalAddress:1
 	start__local_ast_root__3_5 = 1
@@ -66,3 +66,6 @@ def main(resource_0):
 		writer_2.end_record()
 	output_31 = writer_2.write_to_string()
 	return output_31
+if __name__ == "__main__":
+	import sys
+	main(sys.argv[1:])
