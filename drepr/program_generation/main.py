@@ -47,20 +47,18 @@ def gen_program(desc: DRepr, exec_plan: ClassesMapExecutionPlan, output: Output)
         program.root.import_(f"drepr.readers.prelude.read_source_{res.type.value}")
         program.root.import_(writer.get_writer_clspath())
 
+    func_args = [
+        Var.create(mem, "resource", key=VarSpace.resource(res.id))
+        for res in desc.resources
+    ]
     if isinstance(output, FileOutput):
-        output_file = [Var.create(mem, "output_file", key=VarSpace.output_file())]
+        output_file = Var.create(mem, "output_file", key=VarSpace.output_file())
+        func_args.append(output_file)
     else:
-        output_file = []
+        output_file = None
 
     program.root.linebreak()
-    main_fn = program.root.func(
-        "main",
-        [
-            Var.create(mem, "resource", key=VarSpace.resource(res.id))
-            for res in desc.resources
-        ]
-        + output_file,
-    )
+    main_fn = program.root.func("main", func_args)
 
     for resource in desc.resources:
         var = Var.create(mem, "resource_data", key=VarSpace.resource_data(resource.id))
@@ -107,8 +105,8 @@ def gen_program(desc: DRepr, exec_plan: ClassesMapExecutionPlan, output: Output)
     main_fn.linebreak()
     # we write the output to the file
     if isinstance(output, FileOutput):
-        assert len(output_file) > 0
-        writer.write_to_file(mem, main_fn, expr.ExprVar(output_file[0]))
+        assert output_file is not None
+        writer.write_to_file(mem, main_fn, expr.ExprVar(output_file))
     else:
         content = Var.create(mem, "output", key=tuple())
         writer.write_to_string(mem, main_fn, content)
@@ -119,6 +117,7 @@ def gen_program(desc: DRepr, exec_plan: ClassesMapExecutionPlan, output: Output)
         expr.ExprEqual(expr.ExprIdent("__name__"), expr.ExprConstant("__main__"))
     )(
         stmt.ImportStatement("sys"),
+        stmt.LineBreak(),
         stmt.SingleExprStatement(
             expr.ExprFuncCall(expr.ExprIdent("main"), [expr.ExprIdent("*sys.argv[1:]")])
         ),

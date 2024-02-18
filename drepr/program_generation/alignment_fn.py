@@ -133,7 +133,7 @@ class PathAccessor:
                 key=VarSpace.attr_value_dim(attr.resource_id, attr.id, dim),
             )
 
-            if to_aligned_dim is not None:
+            if to_aligned_dim is not None and dim in to_aligned_dim:
                 # this attribute has been aligned with other attribute and
                 # the dimension is bound to the previously set dimension (of a subject)
                 # so we need to copy the value

@@ -11,7 +11,7 @@ from drepr.planning.class_map_plan import BlankSubject, ClassesMapExecutionPlan,
 from tests.conftest import DatasetExample
 
 
-@pytest.mark.parametrize("name", ["pseudo_people/s01"])
+@pytest.mark.parametrize("name", ["pseudo_people"])
 def test_planning(name, example_datasets: dict[str, DatasetExample]):
     ds = example_datasets[name]
     model = DRepr.parse_from_file(ds.model)
@@ -64,9 +64,7 @@ def test_planning(name, example_datasets: dict[str, DatasetExample]):
     # serde.json.ser(
     #     serplan, ds.cwd / f"{ds.model.stem.split('.')[0]}.plan.json", indent=2
     # )
-    assert serplan == serde.json.deser(
-        ds.cwd / f"{ds.model.stem.split('.')[0]}.plan.json"
-    )
+    assert serplan == serde.json.deser(ds.cwd / f"program/plan.json")
 
 
 def subj_to_json(subj: Subject):

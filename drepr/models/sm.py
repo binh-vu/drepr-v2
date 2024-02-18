@@ -20,6 +20,7 @@ class DataType(Enum):
     xsd_int = "xsd:int"
     xsd_string = "xsd:string"
     geo_wktLiteral = "geo:wktLiteral"
+    drepr_uri = "drepr:uri"
 
 
 @dataclass
