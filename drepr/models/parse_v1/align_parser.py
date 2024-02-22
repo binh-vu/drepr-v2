@@ -5,6 +5,7 @@ from drepr.models.align import (
     AlignedStep,
     Alignment,
     AlignmentType,
+    AutoAlignment,
     RangeAlignment,
     ValueAlignment,
 )
@@ -46,6 +47,15 @@ class AlignParser:
           source: <attr_id>
           target: <attr_id>
         ```
+
+    If <alignment_type> is `auto`, then the schema is:
+        ```
+        - type: auto
+          attributes: <list of attributes to align>
+        ```
+
+        The attributes are optional, if not provided, the system will try to align all attributes automatically based
+        on the dimension
     """
 
     ALIGNMENT_TYPES_VALUES = {
@@ -67,12 +77,16 @@ class AlignParser:
             Validator.must_have(align, "type", trace)
 
             align_type = AlignmentType(
-                align["type"] if align["type"] != "dimension" else "range"
+                align["type"]
+                if align["type"] != "dimension"
+                else "range" if align["type"] != "auto" else "auto"
             )
             if align_type == AlignmentType.Range:
                 aligns.append(cls.parse_range_align(align, trace))
-            elif align_type == AlignmentType.value:
+            elif align_type == AlignmentType.Value:
                 aligns.append(cls.parse_value_align(align, trace))
+            elif align_type == AlignmentType.Auto:
+                aligns.append(cls.parse_auto_align(align, trace))
             else:
                 raise NotImplemented(
                     f"{trace}\nERROR: not implement parser for alignment type: {align_type}"
@@ -136,3 +150,21 @@ class AlignParser:
             )
 
         return ValueAlignment(conf["source"], conf["target"])
+
+    @classmethod
+    def parse_auto_align(cls, conf: dict, parse_trace: str) -> AutoAlignment:
+        Validator.must_be_subset(
+            {"type", "attributes"}, conf.keys(), "properties of alignment", parse_trace
+        )
+
+        Validator.must_be_str(
+            conf["type"],
+            f"{parse_trace}\nParsing property `{'type'}` of value alignment",
+        )
+        if "attributes" in conf:
+            Validator.must_be_list_str(
+                conf["attributes"],
+                f"{parse_trace}\nParsing property `{'attributes'}` of value alignment",
+            )
+
+        return AutoAlignment(conf.get("attributes", None))

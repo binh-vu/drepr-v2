@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from .attr import AttrId
 
@@ -107,13 +107,24 @@ class IdenticalAlign:
         return Cardinality.OneToOne
 
 
-Alignment = Union[RangeAlignment, ValueAlignment, IdenticalAlign]
+@dataclass
+class AutoAlignment:
+    attrs: Optional[list[str]] = None
+
+    def compute_cardinality(self, desc: DRepr) -> Cardinality:
+        raise NotImplementedError(
+            """Auto alignment will be preprocessed to turn into Range/Value alignment, so it should not be used to compute cardinality"""
+        )
+
+
+Alignment = Union[RangeAlignment, ValueAlignment, IdenticalAlign, AutoAlignment]
 
 
 class AlignmentType(Enum):
     Range = "range"
     Value = "value"
     Ident = "identical"
+    Auto = "auto"
 
 
 class Cardinality(Enum):

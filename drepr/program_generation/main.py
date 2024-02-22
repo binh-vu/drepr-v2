@@ -12,6 +12,7 @@ from typing_extensions import is_protocol
 
 from drepr.models.path import IndexExpr
 from drepr.models.prelude import Cardinality, DRepr, OutputFormat
+from drepr.models.preprocessing import PMap, Preprocessing, PreprocessingType
 from drepr.planning.class_map_plan import (
     BlankObject,
     BlankSubject,
@@ -91,6 +92,10 @@ def gen_program(
                 ),
                 expr.ExprConstant(attr.missing_values),
             )
+
+    # create transformation
+    for preprocess in desc.preprocessing:
+        gen_preprocess_executor(program, desc, main_fn, preprocess)
 
     # create a writer
     writer.create_writer(program.import_manager, mem, main_fn)
@@ -522,3 +527,24 @@ def gen_classprop_body(
                         ),
                     ),
                 )
+
+
+def gen_preprocess_executor(
+    program: Program, desc: DRepr, ast: AST, preprocessing: Preprocessing
+) -> None:
+    if preprocessing.type == PreprocessingType.pmap:
+        value = preprocessing.value
+        assert isinstance(value, PMap)
+
+        # we don't support change_structure and output yet
+        assert not value.change_structure and value.output is None
+
+        raise NotImplementedError()
+
+        program.root.linebreak()
+
+        # define the transformation functionoc
+
+        return
+
+    raise NotImplementedError(preprocessing.type)

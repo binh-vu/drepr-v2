@@ -1,7 +1,7 @@
 import abc
 import re
 from collections import OrderedDict
-from typing import Any, Set, Iterable, Dict, Union
+from typing import Any, Dict, Iterable, Set, Union
 
 import orjson
 
@@ -14,12 +14,25 @@ class Validator:
     @staticmethod
     def must_be_dict(val: Any, error_msg: str):
         if not isinstance(val, (dict, OrderedDict)):
-            raise InputError(f"{error_msg}\nERROR: Expect a dictionary. Get: {type(val)}")
+            raise InputError(
+                f"{error_msg}\nERROR: Expect a dictionary. Get: {type(val)}"
+            )
 
     @staticmethod
     def must_be_list(val: Any, error_msg: str):
         if not isinstance(val, list):
             raise InputError(f"{error_msg}\nERROR: Expect a list. Get: {type(val)}")
+
+    @staticmethod
+    def must_be_list_str(val: Any, error_msg: str):
+        if not isinstance(val, list):
+            raise InputError(f"{error_msg}\nERROR: Expect a list. Get: {type(val)}")
+
+        for i, v in enumerate(val):
+            if not isinstance(v, str):
+                raise InputError(
+                    f"{error_msg}\nERROR: Expect a list of str. Get: {type(v)} for item in position {i} in the list"
+                )
 
     @staticmethod
     def must_be_str(val: Any, error_msg: str):
@@ -37,9 +50,13 @@ class Validator:
             raise InputError(f"{error_msg}\nERROR: Expect a bool. Get: {type(val)}")
 
     @staticmethod
-    def must_be_subset(parent: Set[Any], subset: Iterable[Any], setname: str, error_msg: str):
+    def must_be_subset(
+        parent: Set[Any], subset: Iterable[Any], setname: str, error_msg: str
+    ):
         if not parent.issuperset(subset):
-            raise InputError(f"{error_msg}\nERROR: {setname.capitalize()} must be a subset of {parent}. Get: {subset}")
+            raise InputError(
+                f"{error_msg}\nERROR: {setname.capitalize()} must be a subset of {parent}. Get: {subset}"
+            )
 
     @staticmethod
     def must_in(val: Any, choices: Set[str], error_msg: str):
@@ -52,12 +69,15 @@ class Validator:
     def must_have(odict: dict, attr: str, error_msg: str):
         if attr not in odict:
             raise InputError(
-                f"{error_msg}\nERROR: The attribute `{attr}` is missing in the object: `{orjson.dumps(odict, option=orjson.OPT_INDENT_2).decode()}`")
+                f"{error_msg}\nERROR: The attribute `{attr}` is missing in the object: `{orjson.dumps(odict, option=orjson.OPT_INDENT_2).decode()}`"
+            )
 
     @staticmethod
     def must_equal(val: Any, expected_val: Any, error_msg: str):
         if val != expected_val:
-            raise InputError(f"{error_msg}\nERROR: The value should be: {expected_val}, get: {val} instead")
+            raise InputError(
+                f"{error_msg}\nERROR: The value should be: {expected_val}, get: {val} instead"
+            )
 
 
 class SchemaValidator(abc.ABC):
@@ -112,7 +132,8 @@ class DictValidator(SchemaValidator):
                         self.attrs[kw] = ListValidator(AnyValidator(False), is_optional)
                     else:
                         self.attrs[kw] = ListValidator(
-                            PrimitiveValidator(arg, is_elem_optional), is_optional)
+                            PrimitiveValidator(arg, is_elem_optional), is_optional
+                        )
                 else:
                     if arg == "any":
                         self.attrs[kw] = AnyValidator(False)
@@ -149,7 +170,10 @@ class DictValidator(SchemaValidator):
         )
 
     def to_string(self):
-        return orjson.dumps({k: v.to_string() for k, v in self.attrs.items()}, option=orjson.OPT_INDENT_2).decode()
+        return orjson.dumps(
+            {k: v.to_string() for k, v in self.attrs.items()},
+            option=orjson.OPT_INDENT_2,
+        ).decode()
 
 
 class AnyValidator(SchemaValidator):

@@ -224,7 +224,7 @@ class ReprV2Parser:
                             if isinstance(align, RangeAlignment)
                             else OrderedDict(
                                 [
-                                    ("type", AlignmentType.value.value),
+                                    ("type", AlignmentType.Value.value),
                                     ("source", align.source),
                                     ("target", align.target),
                                 ]

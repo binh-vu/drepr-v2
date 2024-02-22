@@ -90,7 +90,7 @@ class DRepr:
                         ],
                     )
                 )
-            elif align["type"] == AlignmentType.value.value:
+            elif align["type"] == AlignmentType.Value.value:
                 aligns.append(ValueAlignment(align["source"], align["target"]))
             else:
                 raise NotImplementedError()
@@ -125,7 +125,7 @@ class DRepr:
             if isinstance(align, RangeAlignment):
                 raw_align["type"] = AlignmentType.Range.value
             elif isinstance(align, ValueAlignment):
-                raw_align["type"] = AlignmentType.value.value
+                raw_align["type"] = AlignmentType.Value.value
             else:
                 raise NotImplementedError()
 
@@ -281,7 +281,7 @@ class DRepr:
             elif isinstance(align, ValueAlignment):
                 alignments.append(
                     {
-                        "type": AlignmentType.value.value,
+                        "type": AlignmentType.Value.value,
                         "source": aidmap[align.source],
                         "target": aidmap[align.target],
                     }
