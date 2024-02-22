@@ -406,11 +406,14 @@ class DRepr:
                 return r
         return None
 
-    def get_attr_by_id(self, attr_id: str) -> Optional[Attr]:
+    def has_attr(self, attr_id: str) -> bool:
+        return any(a.id == attr_id for a in self.attrs)
+
+    def get_attr_by_id(self, attr_id: str) -> Attr:
         for a in self.attrs:
             if a.id == attr_id:
                 return a
-        return None
+        raise KeyError(f"Attribute with id {attr_id} does not exist")
 
     def remove_attribute(self, attr_id: str, idx: Optional[int] = None):
         if idx is None:

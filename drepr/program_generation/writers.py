@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from codegen.models import AST, Memory, Var, expr
+from codegen.models.program import ImportManager
 
 from drepr.models.prelude import DRepr, OutputFormat
 from drepr.program_generation.program_space import VarSpace
@@ -18,7 +19,8 @@ class Writer:
         else:
             raise NotImplementedError()
 
-    def create_writer(self, mem: Memory, ast: AST):
+    def create_writer(self, import_manager: ImportManager, mem: Memory, ast: AST):
+        import_manager.import_(self.get_writer_clspath())
         writer_clsname = self.get_writer_clspath().rsplit(".", 1)[-1]
         ast.assign(
             mem,
@@ -29,26 +31,18 @@ class Writer:
             ),
         )
 
-    def has_written_record(self, mem: Memory, prog: AST, subj: expr.Expr):
+    def has_written_record(self, mem: Memory, subj: expr.Expr):
         return expr.ExprMethodCall(
             expr.ExprVar(Var.deref(mem, key=VarSpace.writer())),
             "has_written_record",
             [subj],
         )
 
-    def begin_class(self, mem: Memory, prog: AST, class_uri: str):
-        prog.expr(
-            expr.ExprMethodCall(
-                expr.ExprVar(Var.deref(mem, key=VarSpace.writer())),
-                "begin_class",
-                [expr.ExprConstant(class_uri)],
-            )
-        )
-
     def begin_record(
         self,
         mem: Memory,
         prog: AST,
+        class_uri: expr.Expr,
         subj: expr.Expr,
         is_blank: expr.Expr,
         is_buffered: bool,
@@ -58,7 +52,7 @@ class Writer:
             expr.ExprMethodCall(
                 expr.ExprVar(Var.deref(mem, key=VarSpace.writer())),
                 "begin_record",
-                [subj, is_blank, expr.ExprConstant(is_buffered)],
+                [class_uri, subj, is_blank, expr.ExprConstant(is_buffered)],
             )
         )
 
@@ -95,7 +89,7 @@ class Writer:
         mem: Memory,
         prog: AST,
         predicate_id: expr.Expr,
-        value: expr.ExprVar,
+        value: expr.Expr,
         dtype: expr.ExprConstant,
     ):
         prog.expr(

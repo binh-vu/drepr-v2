@@ -46,7 +46,6 @@ class RangeAlignment:
         """
         source = desc.get_attr_by_id(self.source)
         target = desc.get_attr_by_id(self.target)
-        assert source is not None and target is not None
 
         source_nary_steps = set(source.path.get_nary_steps())
         target_nary_steps = set(target.path.get_nary_steps())
@@ -91,7 +90,6 @@ class ValueAlignment:
         source = desc.get_attr_by_id(self.source)
         target = desc.get_attr_by_id(self.target)
 
-        assert source is not None and target is not None
         if source.unique:
             if target.unique:
                 return Cardinality.OneToOne

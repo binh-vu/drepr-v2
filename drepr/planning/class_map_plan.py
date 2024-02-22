@@ -54,14 +54,10 @@ class ClassesMapExecutionPlan:
                     continue
                 v = desc.sm.nodes[e.target_id]
                 if isinstance(v, DataNode):
+                    v_attr = desc.get_attr_by_id(v.attr_id)
                     edges_has_missing_values[e.edge_id] = (
-                        len(
-                            assert_not_null(
-                                desc.get_attr_by_id(v.attr_id)
-                            ).missing_values
-                        )
-                        > 0
-                    )
+                        len(v_attr.missing_values) > 0
+                    ) or v_attr.path.has_optional_steps()
                 elif isinstance(v, ClassNode):
                     if any(
                         ve.edge_id not in edges_has_missing_values
@@ -118,15 +114,13 @@ class ClassesMapExecutionPlan:
                                 break
 
                         # (2) the URI edge have missing values
-                        if (
-                            len(
-                                assert_not_null(
-                                    desc.get_attr_by_id(class2subj[e.target_id])
-                                ).missing_values
-                            )
-                            > 0
-                        ):
-                            have_missing_values = True
+                        if not have_missing_values:
+                            ve_attr = desc.get_attr_by_id(class2subj[v.node_id])
+                            if (
+                                len(ve_attr.missing_values) > 0
+                                or ve_attr.path.has_optional_steps()
+                            ):
+                                have_missing_values = True
 
                     edges_has_missing_values[e.edge_id] = have_missing_values
                 else:
@@ -192,7 +186,6 @@ class ClassMapPlan:
             target = desc.sm.nodes[e.target_id]
             if isinstance(target, DataNode):
                 attribute = desc.get_attr_by_id(target.attr_id)
-                assert attribute is not None
 
                 if e.get_abs_iri(desc.sm) != DREPR_URI:
                     alignments = inference.get_alignments(subj, target.attr_id)
@@ -206,6 +199,7 @@ class ClassMapPlan:
                             attr=attribute,
                             is_optional=edges_optional[e.edge_id],
                             missing_values=set(attribute.missing_values),
+                            missing_path=attribute.path.has_optional_steps(),
                             datatype=(
                                 target.data_type.value
                                 if target.data_type is not None
@@ -219,7 +213,6 @@ class ClassMapPlan:
                 )
             elif isinstance(target, ClassNode):
                 attribute = desc.get_attr_by_id(class2subj[e.target_id])
-                assert attribute is not None
 
                 alignments = inference.get_alignments(subj, attribute.id)
 
@@ -255,7 +248,6 @@ class ClassMapPlan:
                     object_props.append(prop)
 
         subj_attr = desc.get_attr_by_id(subj)
-        assert subj_attr is not None
 
         if uri_dnode is None:
             subject = BlankSubject(
@@ -393,11 +385,12 @@ class DataProp:
     attr: Attr
     is_optional: bool
     missing_values: set[MISSING_VALUE_TYPE]
+    missing_path: bool
     datatype: Optional[str]
 
     @property
     def can_target_missing(self):
-        return len(self.missing_values) > 0
+        return len(self.missing_values) > 0 or self.missing_path
 
 
 @dataclass

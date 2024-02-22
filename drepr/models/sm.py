@@ -151,6 +151,12 @@ class SemanticModel:
         edges = {eid: Edge(**e) for eid, e in raw["edges"].items()}
         return SemanticModel(nodes, edges, raw["prefixes"])
 
+    def get_class_node(self, node_id: str) -> ClassNode:
+        node = self.nodes[node_id]
+        if not isinstance(node, ClassNode):
+            raise ValueError(f"The node {node_id} is not a class node")
+        return node
+
     def remove_node(self, node_id: str):
         self.nodes.pop(node_id)
         removed_edges = []

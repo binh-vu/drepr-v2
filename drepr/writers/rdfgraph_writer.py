@@ -10,6 +10,8 @@ from drepr.models.drepr import DRepr
 from drepr.models.sm import NodeId
 from drepr.writers.base import StreamClassWriter
 
+SubjVal = str | tuple | int | bool
+
 
 class RDFGraphWriter(StreamClassWriter):
     def __init__(self, prefixes: dict[str, str]):
@@ -17,29 +19,30 @@ class RDFGraphWriter(StreamClassWriter):
         for prefix, ns in prefixes.items():
             self.g.bind(prefix, Namespace(ns))
 
-        self.written_records: set[str] = set()
+        self.written_records: dict[SubjVal, BNode | URIRef] = {}
+        self.origin_subj: SubjVal = ""
         self.subj: Optional[URIRef | BNode] = None
-        self.current_class_uri: URIRef = URIRef("")
         self.buffer: list[tuple[URIRef, URIRef | BNode | Literal]] = []
         self.is_buffered: bool = False
         self.has_subj_data: bool = False
 
-    def begin_class(self, class_uri: str):
-        self.current_class_uri = URIRef(class_uri)
-
-    def has_written_record(self, subj: str) -> bool:
+    def has_written_record(self, subj: SubjVal) -> bool:
         return subj in self.written_records
 
-    def begin_record(self, subj: str, is_blank: bool, is_buffered: bool):
+    def begin_record(
+        self, class_uri: str, subj: SubjVal, is_blank: bool, is_buffered: bool
+    ):
+        self.origin_subj = subj
         if is_blank:
-            self.subj = BNode(subj)
+            self.subj = BNode()
         else:
-            self.subj = URIRef(subj)
+            # subj will be a string for URIRef
+            self.subj = URIRef(subj)  # type: ignore
 
         if is_buffered:
-            self.buffer = [(RDF.type, self.current_class_uri)]
+            self.buffer = [(RDF.type, URIRef(class_uri))]
         else:
-            self.g.add((self.subj, RDF.type, self.current_class_uri))
+            self.g.add((self.subj, RDF.type, URIRef(class_uri)))
         self.is_buffered = is_buffered
 
     def end_record(self):
@@ -51,6 +54,7 @@ class RDFGraphWriter(StreamClassWriter):
             for pred, obj in self.buffer:
                 self.g.add((self.subj, pred, obj))
             self.buffer = []
+        self.written_records[self.origin_subj] = self.subj
         self.subj = None
 
     def abort_record(self):
@@ -62,26 +66,26 @@ class RDFGraphWriter(StreamClassWriter):
         return not self.has_subj_data
 
     def write_data_property(self, predicate_id: str, value: Any, dtype: Optional[str]):
+        if dtype == "drepr:uri":
+            value = URIRef(value)
+        else:
+            value = Literal(value, datatype=dtype)
+
         if self.is_buffered:
-            self.buffer.append((URIRef(predicate_id), Literal(value, datatype=dtype)))
+            self.buffer.append((URIRef(predicate_id), value))
         else:
             assert self.subj is not None
-            self.g.add(
-                (self.subj, URIRef(predicate_id), Literal(value, datatype=dtype))
-            )
+            self.g.add((self.subj, URIRef(predicate_id), value))
 
     def write_object_property(
         self,
         predicate_id: str,
-        object: str,
+        object: SubjVal,
         is_subject_blank: bool,
         is_object_blank: bool,
         is_new_subj: bool,
     ):
-        if is_object_blank:
-            object = BNode(object)
-        else:
-            object = URIRef(object)
+        object = self.written_records[object]
         if self.is_buffered:
             self.buffer.append((URIRef(predicate_id), object))
         else:

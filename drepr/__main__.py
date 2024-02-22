@@ -75,6 +75,9 @@ def main(
             default=Path("/tmp/drepr"),
         ),
     ] = Path("/tmp/drepr"),
+    debuginfo: Annotated[
+        bool, typer.Option(help="Whether to add debug information to the program")
+    ] = False,
 ):
     parsed_resources = {
         (x := ResourceInput.from_string(r)).id: x.file for r in resource
@@ -87,15 +90,16 @@ def main(
     else:
         output = MemoryOutput(format)
 
-    prog = gen_program(parsed_repr, exec_plan, output).to_python()
+    prog = gen_program(parsed_repr, exec_plan, output, debuginfo).to_python()
     if progfile is not None:
         with open(progfile, "w") as f:
             f.write(prog)
+    else:
+        tmpdir.mkdir(parents=True, exist_ok=True)
+        (tmpdir / "main.py").write_text(prog)
+        progfile = tmpdir / "main.py"
 
-    tmpdir.mkdir(parents=True, exist_ok=True)
-    (tmpdir / "main.py").write_text(prog)
-
-    spec = importlib.util.spec_from_file_location("drepr_prog", tmpdir / "main.py")
+    spec = importlib.util.spec_from_file_location("drepr_prog", progfile)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

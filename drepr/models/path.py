@@ -1,6 +1,10 @@
-from dataclasses import asdict, dataclass
+from __future__ import annotations
+
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import List, Optional, Set, Union
+
+from drepr.utils.misc import CacheMethod
 
 
 @dataclass(frozen=True)
@@ -11,7 +15,7 @@ class Expr:
 @dataclass
 class RangeExpr:
     start: Union[int, Expr]
-    end: Optional[Union[int, Expr]]
+    end: Optional[Union[int, Expr]]  # exclusive
     step: Union[int, Expr]
 
     def is_select_all(self) -> bool:
@@ -21,6 +25,10 @@ class RangeExpr:
 @dataclass
 class IndexExpr:
     val: Union[str, int, Expr]
+    is_optional: bool = field(
+        default=False,
+        metadata={"help": "Whether this index can be missing in the data source"},
+    )
 
 
 @dataclass
@@ -72,9 +80,12 @@ class Path:
             elif "val" in step:
                 steps.append(
                     IndexExpr(
-                        Expr(step["val"]["expr"])
-                        if isinstance(step["val"], dict)
-                        else step["val"]
+                        (
+                            Expr(step["val"]["expr"])
+                            if isinstance(step["val"], dict)
+                            else step["val"]
+                        ),
+                        step["is_optional"],
                     )
                 )
             elif "vals" in step:
@@ -88,6 +99,40 @@ class Path:
                 )
         return Path(steps)
 
+    def is_step_optional(self, step_index: int):
+        step = self.steps[step_index]
+        return isinstance(step, IndexExpr) and step.is_optional
+
+    @CacheMethod.cache(CacheMethod.as_is_posargs)
+    def has_optional_steps(self) -> bool:
+        """Check if this path has any optional steps, an optional step is a step that the key may not appear in the data source"""
+        return any(isinstance(s, IndexExpr) and s.is_optional for s in self.steps)
+
+    @CacheMethod.cache(CacheMethod.as_is_posargs)
+    def get_optional_steps(self) -> list[int]:
+        """Get the indices of optional steps in this path in sorted order"""
+        return [
+            i
+            for i, s in enumerate(self.steps)
+            if isinstance(s, IndexExpr) and s.is_optional
+        ]
+
+    def share_same_optional_steps(self, path: Path) -> bool:
+        """Check if another path has the same optional steps as this path.
+
+        In order for two paths to share the same optional steps, any previous steps of the optional step must be the same
+        and the number of optional steps must be the same.
+        """
+        self_opt_steps = self.get_optional_steps()
+        path_opt_steps = path.get_optional_steps()
+
+        if self_opt_steps != path_opt_steps:
+            return False
+
+        return (
+            self.steps[: self_opt_steps[-1] + 1] == path.steps[: path_opt_steps[-1] + 1]
+        )
+
     def get_nary_steps(self) -> list[int]:
         """Obtain a list of indices of steps that select more than one elements"""
         unfixed_dims = []
@@ -96,60 +141,6 @@ class Path:
                 unfixed_dims.append(d)
 
         return unfixed_dims
-
-    def to_engine_format(self) -> dict:
-        steps = []
-        for step in self.steps:
-            if isinstance(step, RangeExpr):
-                if step.end is None:
-                    end = None
-                elif isinstance(step.end, Expr):
-                    end = f"${{{step.end.expr}}}"
-                else:
-                    end = step.end
-
-                steps.append(
-                    {
-                        "type": "range",
-                        "start": (
-                            f"${{{step.start.expr}}}"
-                            if isinstance(step.start, Expr)
-                            else step.start
-                        ),
-                        "end": end,
-                        "step": (
-                            f"${{{step.step.expr}}}"
-                            if isinstance(step.step, Expr)
-                            else step.step
-                        ),
-                    }
-                )
-            elif isinstance(step, IndexExpr):
-                steps.append(
-                    {
-                        "type": "index",
-                        "val": {
-                            "t": "str" if isinstance(step.val, str) else "idx",
-                            "c": step.val,
-                        },
-                    }
-                )
-            elif isinstance(step, SetIndexExpr):
-                steps.append(
-                    {
-                        "type": "set_index",
-                        "values": [
-                            {"t": "str" if isinstance(val, str) else "idx", "c": val}
-                            for val in step.vals
-                        ],
-                    }
-                )
-            elif isinstance(step, WildcardExpr):
-                if step == WildcardExpr.Values:
-                    steps.append({"type": "wildcard"})
-                else:
-                    raise NotImplementedError("We haven't supported operator `*~` yet")
-        return {"steps": steps}
 
     def to_lang_format(self, use_json_path: bool = False) -> Union[list, str]:
         """
@@ -170,10 +161,14 @@ class Path:
                         )
                     jpath.append(f"[{step.start}:{step.end or ''}:{step.step}]")
                 elif isinstance(step, IndexExpr):
-                    if isinstance(step.val, str):
-                        jpath.append(f"['{step.val}']")
+                    if step.is_optional:
+                        meta = "?"
                     else:
-                        jpath.append(f"[{step.val}]")
+                        meta = ""
+                    if isinstance(step.val, str):
+                        jpath.append(f'["{step.val}"{meta}]')
+                    else:
+                        jpath.append(f"[{step.val}{meta}]")
                 elif isinstance(step, SetIndexExpr):
                     raise NotImplementedError()
                 else:
@@ -193,7 +188,10 @@ class Path:
                 ]
                 path.append(f"{start}..{end}:{step}")
             elif isinstance(step, IndexExpr):
-                path.append(step.val)
+                if step.is_optional:
+                    path.append([step.val])
+                else:
+                    path.append(step.val)
             elif isinstance(step, SetIndexExpr):
                 path.append(step.vals)
             elif isinstance(step, WildcardExpr):

@@ -11,7 +11,8 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "args": [
-                "examples/pseudo_people/s01.default.csv"
+                // "examples/pseudo_people/s01.default.csv"
+                "examples/mineral_site/missing_values/default.json"
             ]
         },
         {

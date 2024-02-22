@@ -1,19 +1,19 @@
 from drepr.readers.prelude import read_source_csv
 from drepr.writers.rdfgraph_writer import RDFGraphWriter
 
+
 def main(resource_0, output_file_1):
 	resource_data_2 = read_source_csv(resource_0)
 	
 	writer_3 = RDFGraphWriter({"schema": "http://schema.org/", "drepr": "https://purl.org/drepr/1.0/", "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdfs": "http://www.w3.org/2000/01/rdf-schema#", "owl": "http://www.w3.org/2002/07/owl#"})
 	
 	# Transform records of class schema:PostalAddress:1
-	writer_3.begin_class("schema:PostalAddress:1")
-	start__local_ast_root__3_6 = 1
-	end__local_ast_root__3_7 = len(resource_data_2)
-	for street_index_0_4 in range(start__local_ast_root__3_6, end__local_ast_root__3_7):
+	start__local_ast_root__2_6 = 1
+	end__local_ast_root__2_7 = len(resource_data_2)
+	for street_index_0_4 in range(start__local_ast_root__2_6, end__local_ast_root__2_7):
 		street_value_0_5 = resource_data_2[street_index_0_4]
 		street_value_1_8 = street_value_0_5[3]
-		writer_3.begin_record(street_value_1_8, True, False)
+		writer_3.begin_record("http://schema.org/PostalAddress", street_index_0_4, True, False)
 		
 		# Retrieve value of data property: street
 		writer_3.write_data_property("http://schema.org/streetAddress", street_value_1_8, None)
@@ -39,13 +39,12 @@ def main(resource_0, output_file_1):
 		writer_3.end_record()
 	
 	# Transform records of class schema:Person:1
-	writer_3.begin_class("schema:Person:1")
-	start__local_ast_root__3_20 = 1
-	end__local_ast_root__3_21 = len(resource_data_2)
-	for id_index_0_18 in range(start__local_ast_root__3_20, end__local_ast_root__3_21):
+	start__local_ast_root__2_20 = 1
+	end__local_ast_root__2_21 = len(resource_data_2)
+	for id_index_0_18 in range(start__local_ast_root__2_20, end__local_ast_root__2_21):
 		id_value_0_19 = resource_data_2[id_index_0_18]
 		id_value_1_22 = id_value_0_19[0]
-		writer_3.begin_record(id_value_1_22, False, False)
+		writer_3.begin_record("http://schema.org/Person", id_value_1_22, False, False)
 		
 		# Retrieve value of data property: name
 		name_index_0_23 = id_index_0_18
@@ -63,7 +62,7 @@ def main(resource_0, output_file_1):
 		street_index_0_29 = id_index_0_18
 		street_value_0_30 = resource_data_2[street_index_0_29]
 		street_value_1_31 = street_value_0_30[3]
-		writer_3.write_object_property("http://schema.org/address", street_value_1_31, False, True, False)
+		writer_3.write_object_property("http://schema.org/address", street_index_0_4, False, True, False)
 		
 		writer_3.end_record()
 	

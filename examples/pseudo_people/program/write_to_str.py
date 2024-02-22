@@ -1,19 +1,19 @@
 from drepr.readers.prelude import read_source_csv
 from drepr.writers.rdfgraph_writer import RDFGraphWriter
 
+
 def main(resource_0):
 	resource_data_1 = read_source_csv(resource_0)
 	
 	writer_2 = RDFGraphWriter({"schema": "http://schema.org/", "drepr": "https://purl.org/drepr/1.0/", "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdfs": "http://www.w3.org/2000/01/rdf-schema#", "owl": "http://www.w3.org/2002/07/owl#"})
 	
 	# Transform records of class schema:PostalAddress:1
-	writer_2.begin_class("schema:PostalAddress:1")
-	start__local_ast_root__3_5 = 1
-	end__local_ast_root__3_6 = len(resource_data_1)
-	for street_index_0_3 in range(start__local_ast_root__3_5, end__local_ast_root__3_6):
+	start__local_ast_root__2_5 = 1
+	end__local_ast_root__2_6 = len(resource_data_1)
+	for street_index_0_3 in range(start__local_ast_root__2_5, end__local_ast_root__2_6):
 		street_value_0_4 = resource_data_1[street_index_0_3]
 		street_value_1_7 = street_value_0_4[3]
-		writer_2.begin_record(street_value_1_7, True, False)
+		writer_2.begin_record("http://schema.org/PostalAddress", street_index_0_3, True, False)
 		
 		# Retrieve value of data property: street
 		writer_2.write_data_property("http://schema.org/streetAddress", street_value_1_7, None)
@@ -39,13 +39,12 @@ def main(resource_0):
 		writer_2.end_record()
 	
 	# Transform records of class schema:Person:1
-	writer_2.begin_class("schema:Person:1")
-	start__local_ast_root__3_19 = 1
-	end__local_ast_root__3_20 = len(resource_data_1)
-	for id_index_0_17 in range(start__local_ast_root__3_19, end__local_ast_root__3_20):
+	start__local_ast_root__2_19 = 1
+	end__local_ast_root__2_20 = len(resource_data_1)
+	for id_index_0_17 in range(start__local_ast_root__2_19, end__local_ast_root__2_20):
 		id_value_0_18 = resource_data_1[id_index_0_17]
 		id_value_1_21 = id_value_0_18[0]
-		writer_2.begin_record(id_value_1_21, False, False)
+		writer_2.begin_record("http://schema.org/Person", id_value_1_21, False, False)
 		
 		# Retrieve value of data property: name
 		name_index_0_22 = id_index_0_17
@@ -63,7 +62,7 @@ def main(resource_0):
 		street_index_0_28 = id_index_0_17
 		street_value_0_29 = resource_data_1[street_index_0_28]
 		street_value_1_30 = street_value_0_29[3]
-		writer_2.write_object_property("http://schema.org/address", street_value_1_30, False, True, False)
+		writer_2.write_object_property("http://schema.org/address", street_index_0_3, False, True, False)
 		
 		writer_2.end_record()
 	
@@ -73,4 +72,4 @@ def main(resource_0):
 if __name__ == "__main__":
 	import sys
 	
-	main(*sys.argv[1:])
+	print(main(*sys.argv[1:]))

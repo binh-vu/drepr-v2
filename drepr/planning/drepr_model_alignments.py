@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Generic, Optional, TypeVar
 
-from graph.retworkx import BaseEdge, RetworkXStrDiGraph, BaseNode
-from drepr.models.align import AlignedStep
+from graph.retworkx import BaseEdge, BaseNode, RetworkXStrDiGraph
 
+from drepr.models.align import AlignedStep
 from drepr.models.prelude import (
     Alignment,
     AttrId,
@@ -126,7 +126,11 @@ class DReprModelAlignments:
         """
         Find all attributes that can be the subject of these attributes
 
-        The subject must has one to one mapping to all attrs
+        The subject must has one to one mapping to all attrs and:
+        (1) have no missing path
+        (2) have missing path, but the missing path is the same for all attrs.
+
+        (1) has higher priority than (2).
         """
         subjs = []
 
@@ -188,9 +192,41 @@ class DReprModelAlignments:
                 ):
                     # the second condition detect if there is duplication
                     subjs.append(attr.id)
+
+        if len(subjs) > 0:
+            # now, we filter the missing path condition, if there is subject that have no missing path, we use them.
+            if any(
+                not self.desc.get_attr_by_id(subj).path.has_optional_steps()
+                for subj in subjs
+            ):
+                return [
+                    subj
+                    for subj in subjs
+                    if not self.desc.get_attr_by_id(subj).path.has_optional_steps()
+                ]
+
+            # check if we have subject with missing path, but the missing path is the same for all attrs
+            filtered_subjs = []
+
+            for subj_id in subjs:
+                subj = self.desc.get_attr_by_id(subj_id)
+
+                # now we need to check if this subject has the same missing path to all attrs.
+                if all(
+                    subj.path.share_same_optional_steps(
+                        self.desc.get_attr_by_id(ai).path
+                    )
+                    for ai in attrs
+                ):
+                    filtered_subjs.append(subj_id)
+
+            subjs = filtered_subjs
+
         return subjs
 
-    def infer_func(self, xid: AttrId, yid: AttrId, zid: AttrId) -> Optional[list[Alignment]]:
+    def infer_func(
+        self, xid: AttrId, yid: AttrId, zid: AttrId
+    ) -> Optional[list[Alignment]]:
         """Infer an alignment function of xid and zid given alignments between (xid, yid) and (yid, zid)
 
         If there is only one way to join values of xid and zid, then the chain join will be the correct one
@@ -203,9 +239,9 @@ class DReprModelAlignments:
         g_cardin = self.estimate_cardinality(g)
 
         # filter the case where we cannot chain these alignments
-        can_chain_alignments = (f_cardin == Cardinality.OneToOne or f_cardin == Cardinality.OneToMany) or (
-            g_cardin == Cardinality.OneToOne or g_cardin == Cardinality.ManyToOne
-        )
+        can_chain_alignments = (
+            f_cardin == Cardinality.OneToOne or f_cardin == Cardinality.OneToMany
+        ) or (g_cardin == Cardinality.OneToOne or g_cardin == Cardinality.ManyToOne)
 
         if not can_chain_alignments:
             return None
@@ -252,7 +288,7 @@ class DReprModelAlignments:
     def optimize_chained_alignments(self, aligns: list[Alignment]) -> list[Alignment]:
         if len(aligns) == 0:
             return []
-        
+
         joins = []
 
         # rule 1: consecutive dimension alignments are combined together
@@ -260,7 +296,9 @@ class DReprModelAlignments:
 
         for align in aligns[1:]:
             lastjoin = joins[-1]
-            if isinstance(lastjoin, RangeAlignment) and isinstance(align, RangeAlignment):
+            if isinstance(lastjoin, RangeAlignment) and isinstance(
+                align, RangeAlignment
+            ):
                 # we merge them together
                 a0 = lastjoin
                 a1 = align
@@ -270,15 +308,18 @@ class DReprModelAlignments:
                     source=a0.source,
                     target=a1.target,
                     aligned_steps=[
-                        AlignedStep(source_idx=ad.source_idx, target_idx=a1map[ad.target_idx])
+                        AlignedStep(
+                            source_idx=ad.source_idx, target_idx=a1map[ad.target_idx]
+                        )
                         for ad in a0.aligned_steps
                         if ad.target_idx in a1map
-                    ]
+                    ],
                 )
             else:
                 joins.append(align)
 
         return joins
+
 
 @dataclass
 class CustomedDfs:

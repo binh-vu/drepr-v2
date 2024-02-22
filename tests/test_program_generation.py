@@ -13,7 +13,7 @@ from drepr.program_generation.main import FileOutput, MemoryOutput, gen_program
 from tests.conftest import DatasetExample
 
 
-@pytest.mark.parametrize("name", ["pseudo_people", "mineral_site/missing_values"][1:])
+@pytest.mark.parametrize("name", ["pseudo_people", "mineral_site/missing_values"])
 def test_program_generation(
     name, example_datasets: dict[str, DatasetExample], tmp_path: Path
 ):
@@ -22,13 +22,18 @@ def test_program_generation(
 
     plan = ClassesMapExecutionPlan.create(model)
 
-    prog = gen_program(model, plan, MemoryOutput(OutputFormat.TTL)).to_python()
+    prog = gen_program(
+        model, plan, MemoryOutput(OutputFormat.TTL), debuginfo=False
+    ).to_python()
     if not (ds.cwd / f"program/write_to_str.py").exists():
         (ds.cwd / f"program/write_to_str.auto.py").write_text(prog)
     assert prog == (ds.cwd / f"program/write_to_str.py").read_text()
 
     prog = gen_program(
-        model, plan, FileOutput(tmp_path / f"{ds.name}.ttl", OutputFormat.TTL)
+        model,
+        plan,
+        FileOutput(tmp_path / f"{ds.name}.ttl", OutputFormat.TTL),
+        debuginfo=False,
     ).to_python()
     if not (ds.cwd / f"program/write_to_file.py").exists():
         (ds.cwd / f"program/write_to_file.auto.py").write_text(prog)
