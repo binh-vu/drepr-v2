@@ -5,7 +5,7 @@ from typing import Generic, Optional, TypeVar
 
 from graph.retworkx import BaseEdge, BaseNode, RetworkXStrDiGraph
 
-from drepr.models.align import AlignedStep
+from drepr.models.align import AlignedStep, AutoAlignment
 from drepr.models.prelude import (
     Alignment,
     AttrId,
@@ -34,6 +34,25 @@ class DReprModelAlignments:
             elif isinstance(a, ValueAlignment):
                 aligns[(a.source, a.target)] = [a]
                 aligns[(a.target, a.source)] = [a.swap()]
+            elif isinstance(a, AutoAlignment):
+                if a.attrs is None:
+                    attrs = desc.attrs
+                else:
+                    attrs = [desc.get_attr_by_id(attr) for attr in a.attrs]
+
+                # now for each pair of attributes, we look at there steps and align them one by one
+                for source in attrs:
+                    for target in attrs:
+                        if source.id == target.id or (source.id, target.id) in aligns:
+                            continue
+
+                        # If they are diverged, we cannot align them. This can only generate one-to-one
+                        # or one-to-many alignments
+                        for i in range(
+                            min(len(source.path.steps), len(target.path.steps))
+                        ):
+                            if isinstance(source.path.steps[i], RangeAlignment):
+                                pass
             elif isinstance(a, IdenticalAlign):
                 raise Exception(
                     "Unreachable! Users should not provide identical alignment in the model"
