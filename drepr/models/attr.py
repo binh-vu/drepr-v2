@@ -15,13 +15,20 @@ class Sorted(Enum):
 
 
 class ValueType(Enum):
-    Unspecified = "unspecified"
+    UnspecifiedSingle = "unspecified-single"
     Int = "int"
     Float = "float"
     String = "str"
     List_Int = "list[int]"
     List_Float = "list[float]"
     List_String = "list[str]"
+
+    def is_list(self) -> bool:
+        return self in (
+            ValueType.List_Int,
+            ValueType.List_Float,
+            ValueType.List_String,
+        )
 
 
 MISSING_VALUE_TYPE = Optional[Union[str, int, float]]
@@ -36,7 +43,7 @@ class Attr:
     missing_values: list[MISSING_VALUE_TYPE]
     unique: bool = False
     sorted: Sorted = Sorted.Null
-    value_type: ValueType = ValueType.Unspecified
+    value_type: ValueType = ValueType.UnspecifiedSingle
 
     @staticmethod
     def deserialize(raw: dict) -> "Attr":

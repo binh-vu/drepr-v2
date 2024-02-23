@@ -12,7 +12,8 @@
             "console": "integratedTerminal",
             "args": [
                 // "examples/pseudo_people/s01.default.csv"
-                "examples/mineral_site/missing_values/default.json"
+                // "examples/mineral_site/missing_values/default.json"
+                "examples/mineral_system/misspath_autoalign/default.json"
             ]
         },
         {
@@ -21,10 +22,15 @@
             "request": "launch",
             "module": "drepr",
             "args": [
-                "examples/mineral_site/missing_values/model.yml",
-                "default=examples/mineral_site/missing_values/default.json",
+                // "examples/mineral_site/missing_values/model.yml",
+                // "default=examples/mineral_site/missing_values/default.json",
+                // "--progfile",
+                // "examples/mineral_site/missing_values/program/write_to_str.py"
+                "examples/mineral_system/misspath_autoalign/model.yml",
+                "default=examples/mineral_system/misspath_autoalign/default.json",
                 "--progfile",
-                "examples/mineral_site/missing_values/program/write_to_str.py"
+                "examples/mineral_system/misspath_autoalign/program/write_to_str.py",
+                "--debuginfo"
             ]
         },
         {

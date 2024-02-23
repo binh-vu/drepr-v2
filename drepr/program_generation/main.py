@@ -238,6 +238,8 @@ def gen_classplan_executor(
     else:
         # if this is a blank node, the subj_val is the entire index that leads to the last value
         _non_index_steps = [
+            expr.ExprConstant(desc.get_attr_index_by_id(classplan.subject.attr.id))
+        ] + [
             expr.ExprVar(
                 Var.deref(
                     mem,
@@ -251,11 +253,7 @@ def gen_classplan_executor(
             for dim, step in enumerate(classplan.subject.attr.path.steps)
             if not isinstance(step, IndexExpr)
         ]
-        get_subj_val = lambda: (
-            PredefinedFn.tuple(_non_index_steps)
-            if len(_non_index_steps) > 1
-            else _non_index_steps[0]
-        )
+        get_subj_val = lambda: (PredefinedFn.tuple(_non_index_steps))
 
     if (
         isinstance(classplan.subject, (InternalIDSubject, ExternalIDSubject))
@@ -362,37 +360,54 @@ def gen_classprop_body(
     debuginfo: bool,
 ):
     attr = classprop.attr
+    iter_final_list = False
     if isinstance(classprop, (DataProp, IDObject)):
-        get_prop_val = lambda: expr.ExprVar(
-            Var.deref(
-                mem,
-                key=VarSpace.attr_value_dim(
-                    attr.resource_id,
-                    attr.id,
-                    len(attr.path.steps) - 1,
-                ),
-            )
-        )
-    else:
-        assert isinstance(classprop, BlankObject)
-        _non_index_steps = [
-            expr.ExprVar(
+        if isinstance(classprop, DataProp) and classprop.attr.value_type.is_list():
+            # for a list, we need to iterate over the list.
+            get_prop_val = lambda: expr.ExprVar(
                 Var.deref(
                     mem,
-                    key=VarSpace.attr_index_dim(
-                        classprop.attr.resource_id,
-                        classprop.attr.id,
-                        dim,
+                    key=VarSpace.attr_value_dim(
+                        attr.resource_id,
+                        attr.id,
+                        len(
+                            attr.path.steps
+                        ),  # not -1 because the last dimension is now a list
                     ),
                 )
             )
-            for dim, step in enumerate(classprop.attr.path.steps)
-            if not isinstance(step, IndexExpr)
-        ]
+            iter_final_list = True
+        else:
+            get_prop_val = lambda: expr.ExprVar(
+                Var.deref(
+                    mem,
+                    key=VarSpace.attr_value_dim(
+                        attr.resource_id,
+                        attr.id,
+                        len(attr.path.steps) - 1,
+                    ),
+                )
+            )
+    else:
+        assert isinstance(classprop, BlankObject)
         get_prop_val = lambda: (
-            PredefinedFn.tuple(_non_index_steps)
-            if len(_non_index_steps) > 1
-            else _non_index_steps[0]
+            PredefinedFn.tuple(
+                [expr.ExprConstant(desc.get_attr_index_by_id(classprop.attr.id))]
+                + [
+                    expr.ExprVar(
+                        Var.deref(
+                            mem,
+                            key=VarSpace.attr_index_dim(
+                                classprop.attr.resource_id,
+                                classprop.attr.id,
+                                dim,
+                            ),
+                        )
+                    )
+                    for dim, step in enumerate(classprop.attr.path.steps)
+                    if not isinstance(step, IndexExpr)
+                ]
+            )
         )
 
     if isinstance(classprop, DataProp):
@@ -429,7 +444,7 @@ def gen_classprop_body(
 
     if not classprop.can_target_missing:
         AlignmentFn(desc, import_manager).align(
-            mem, ast, classprop.alignments, debuginfo, None
+            mem, ast, classprop.alignments, debuginfo, None, iter_final_list
         )(
             lambda ast_l0: write_fn(
                 mem,
@@ -447,6 +462,7 @@ def gen_classprop_body(
                 debuginfo,
                 # if the value is missing, we just ignore it.
                 on_missing_key=lambda astxx: astxx(stmt.NoStatement()),
+                iter_final_list=iter_final_list,
             )(
                 lambda ast00: ast00.if_(is_prop_val_not_missing())(
                     lambda ast01: write_fn(
@@ -475,6 +491,7 @@ def gen_classprop_body(
                     classprop.alignments,
                     debuginfo,
                     lambda astxx: astxx(stmt.NoStatement()),
+                    iter_final_list,
                 )(
                     lambda ast00: ast00.if_(is_prop_val_not_missing())(
                         lambda ast01: ast01.assign(
@@ -508,6 +525,7 @@ def gen_classprop_body(
                         "We should only abort record if we are buffering",
                     )
                     and writer.abort_record(mem, astxx),
+                    iter_final_list=iter_final_list,
                 )(
                     lambda ast00: ast00.if_(is_prop_val_not_missing())(
                         lambda ast01: write_fn(

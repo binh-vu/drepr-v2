@@ -249,3 +249,10 @@ class SemanticModel:
             raise ValueError(
                 f"Found multiple edges between {source_id} and {target_id}"
             )
+
+    def get_edges_between_nodes(self, source_id: str, target_id: str):
+        matched_edges = []
+        for e in self.edges.values():
+            if e.source_id == source_id and e.target_id == target_id:
+                matched_edges.append(e)
+        return matched_edges

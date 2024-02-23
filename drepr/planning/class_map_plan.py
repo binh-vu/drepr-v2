@@ -189,6 +189,17 @@ class ClassMapPlan:
 
                 if e.get_abs_iri(desc.sm) != DREPR_URI:
                     alignments = inference.get_alignments(subj, target.attr_id)
+                    alignments_cardinality = inference.estimate_cardinality(alignments)
+
+                    if attribute.value_type.is_list():
+                        if alignments_cardinality.is_one_to_star():
+                            alignments_cardinality = Cardinality.OneToMany
+                        else:
+                            assert (
+                                alignments_cardinality.is_many_to_star()
+                            ), alignments_cardinality
+                            alignments_cardinality = Cardinality.ManyToMany
+
                     data_props.append(
                         DataProp(
                             alignments=alignments,
@@ -256,10 +267,11 @@ class ClassMapPlan:
         else:
             # get missing values from the real subjects
             missing_values = set(subj_attr.missing_values)
-            uri_dnode_inedge = desc.sm.get_edge_between_nodes(
-                class_id, uri_dnode.node_id
-            )
-            assert uri_dnode_inedge is not None
+            (uri_dnode_inedge,) = [
+                e
+                for e in desc.sm.get_edges_between_nodes(class_id, uri_dnode.node_id)
+                if e.get_abs_iri(desc.sm) == DREPR_URI
+            ]
 
             if uri_dnode.attr_id == subj:
                 subject = InternalIDSubject(
@@ -313,8 +325,10 @@ class ClassMapPlan:
         # if the subject attribute is provided, then, we will use it.
         subjs = []
         for u in data_nodes:
-            e = desc.sm.get_edge_between_nodes(class_id, u.node_id)
-            if e is not None and e.is_subject:
+            if any(
+                e.is_subject
+                for e in desc.sm.get_edges_between_nodes(class_id, u.node_id)
+            ):
                 subjs.append(u.attr_id)
 
         if len(subjs) == 0:

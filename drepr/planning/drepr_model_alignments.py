@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Generic, Optional, TypeVar
 
 from graph.retworkx import BaseEdge, BaseNode, RetworkXStrDiGraph
 
 from drepr.models.align import AlignedStep, AutoAlignment
+from drepr.models.attr import Attr
+from drepr.models.path import IndexExpr, RangeExpr, SetIndexExpr
 from drepr.models.prelude import (
     Alignment,
     AttrId,
@@ -43,16 +46,16 @@ class DReprModelAlignments:
                 # now for each pair of attributes, we look at there steps and align them one by one
                 for source in attrs:
                     for target in attrs:
-                        if source.id == target.id or (source.id, target.id) in aligns:
+                        if (
+                            source.id == target.id
+                            or len(aligns[source.id, target.id]) > 0
+                        ):
                             continue
 
-                        # If they are diverged, we cannot align them. This can only generate one-to-one
-                        # or one-to-many alignments
-                        for i in range(
-                            min(len(source.path.steps), len(target.path.steps))
-                        ):
-                            if isinstance(source.path.steps[i], RangeAlignment):
-                                pass
+                        new_align = DReprModelAlignments.auto_align(source, target)
+                        if new_align is not None:
+                            aligns[(source.id, target.id)] = [new_align]
+                            aligns[(target.id, source.id)] = [new_align.swap()]
             elif isinstance(a, IdenticalAlign):
                 raise Exception(
                     "Unreachable! Users should not provide identical alignment in the model"
@@ -69,15 +72,20 @@ class DReprModelAlignments:
         return self.aligns[(source, target)]
 
     def inference(self):
-        mg = RetworkXStrDiGraph()
+        mg = RetworkXStrDiGraph(multigraph=False)
         for a in self.desc.attrs:
             mg.add_node(BaseNode(a.id))
 
-        for a in self.desc.aligns:
-            if isinstance(a, (RangeAlignment, ValueAlignment)):
-                mg.add_edge(BaseEdge(id=-1, source=a.source, target=a.target, key=""))
-                mg.add_edge(BaseEdge(id=-1, source=a.target, target=a.source, key=""))
-            else:
+        for (source, target), aligns in self.aligns.items():
+            assert len(aligns) <= 1, aligns
+            if len(aligns) == 0:
+                continue
+
+            if isinstance(aligns[0], (RangeAlignment, ValueAlignment)):
+                mg.add_edge(BaseEdge(id=-1, source=source, target=target, key=""))
+                mg.add_edge(BaseEdge(id=-1, source=target, target=source, key=""))
+            elif not isinstance(aligns[0], IdenticalAlign):
+                print(aligns)
                 raise Exception("Unreachable")
 
         while True:
@@ -89,8 +97,15 @@ class DReprModelAlignments:
                 new_outgoing_edges = []
                 new_incoming_edges = []
 
+                # TODO: fix me. this is a temporary work around to avoid infinite loop
+                # checkout the original code in Rust. Before, we allow to revisit the same node
+                # infinite times, but now we only allow to revisit the node maximum K x mg.nodes times.
                 dfs = CustomedDfs.from_graph(mg, u0.id)
-                revisit = set()
+                revisit: set[str] = set()
+
+                # to break the infinite loop, we have to limit the number of times we revisit the same node
+                max_revisit = mg.num_nodes() * 10
+                revisit_count: dict[str, int] = {}
 
                 if dfs.next(mg, revisit) is not None:
                     # call next first to skip the u0
@@ -103,6 +118,13 @@ class DReprModelAlignments:
                         if tmp_u1u2 is None:
                             break
                         (u1, u2) = tmp_u1u2
+
+                        if u2 in revisit:
+                            # to break the infinite loop, we have to limit the number of times we revisit the same node
+                            if revisit_count[u2] > 0:
+                                revisit_count[u2] -= 1
+                                if revisit_count[u2] <= 0:
+                                    revisit.remove(u2)
 
                         if mg.has_edge_between_nodes(
                             u0.id, u1, ""
@@ -117,8 +139,16 @@ class DReprModelAlignments:
                                     dfs.stack.pop()
 
                                 # mark this u2 as re-visited because it may be discovered from other nodes
-                                # we should not have infinite recursive loop here
-                                revisit.add(u2)
+                                # we did have infinite recursive loop here so we need to introduce revisit_count
+                                if u2 not in revisit_count:
+                                    revisit_count[u2] = max_revisit
+                                    revisit.add(u2)
+                                elif revisit_count[u2] > 0:
+                                    revisit_count[u2] -= 1
+                                    if revisit_count[u2] <= 0:
+                                        revisit.remove(u2)
+                                else:
+                                    assert u2 not in revisit
                                 continue
                             else:
                                 afuncs = inferres
@@ -338,6 +368,40 @@ class DReprModelAlignments:
                 joins.append(align)
 
         return joins
+
+    @staticmethod
+    def auto_align(source: Attr, target: Attr) -> Optional[RangeAlignment]:
+        source_range_steps = [
+            i for i, step in enumerate(source.path.steps) if isinstance(step, RangeExpr)
+        ]
+        target_range_steps = [
+            i for i, step in enumerate(target.path.steps) if isinstance(step, RangeExpr)
+        ]
+
+        if len(source_range_steps) == 0 or len(target_range_steps) == 0:
+            return None
+
+        end = min(source_range_steps[-1], target_range_steps[-1])
+
+        if source.path.steps[:end] == target.path.steps[:end]:
+            # we can align all of them as long as all the steps are index
+            if all(
+                isinstance(step, (RangeExpr, IndexExpr, SetIndexExpr))
+                for step in source.path.steps
+            ) and all(
+                isinstance(step, (RangeExpr, IndexExpr, SetIndexExpr))
+                for step in target.path.steps
+            ):
+                return RangeAlignment(
+                    source=source.id,
+                    target=target.id,
+                    aligned_steps=[
+                        AlignedStep(source_idx=dim, target_idx=dim)
+                        for dim in source_range_steps
+                    ],
+                )
+
+        return None
 
 
 @dataclass

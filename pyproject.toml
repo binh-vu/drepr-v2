@@ -1,9 +1,10 @@
 [tool.poetry]
-name = "drepr"
-version = "1.0.2"
+name = "drepr-v2"
+version = "1.0.3"
 description = ""
 authors = ["Binh Vu <binh@toan2.com>"]
 readme = "README.md"
+packages = [{ include = "drepr" }]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -12,7 +13,7 @@ ruamel-yaml = "^0.17.21"
 graph-wrapper = "^1.7.1"
 serde2 = "^1.7.3"
 typer = { extras = ["all"], version = "^0.9.0" }
-codegen-2 = "^1.3.0"
+codegen-2 = "^1.4.0"
 rdflib = "^7.0.0"
 
 [tool.poetry.group.dev.dependencies]

@@ -31,11 +31,12 @@ class AlignmentFn:
         aligns: list[Alignment],
         validate_path: bool,
         on_missing_key: Optional[Callable[[AST], Any]],
+        iter_final_list: bool,
     ):
         for align in aligns:
             if isinstance(align, RangeAlignment):
                 ast = self.align_by_range(
-                    mem, ast, align, validate_path, on_missing_key
+                    mem, ast, align, validate_path, on_missing_key, iter_final_list
                 )
             elif isinstance(align, IdenticalAlign):
                 # this is the alignment between the same attribute
@@ -51,6 +52,7 @@ class AlignmentFn:
         align: RangeAlignment,
         validate_path: bool,
         on_missing_key: Optional[Callable[[AST], Any]],
+        iter_final_list: bool,
     ) -> AST:
         """Generate a piece of code that will generate variables (of target attr) to
         complete this alignment, if the alignment is one/many to one, then return ast is the same
@@ -71,6 +73,7 @@ class AlignmentFn:
             to_aligned_dim=to_aligned_dim,
             validate_path=validate_path,
             on_missing_key=on_missing_key,
+            iter_final_list=iter_final_list,
         )
 
 
@@ -89,6 +92,7 @@ class PathAccessor:
         to_aligned_dim: Optional[dict[int, int]] = None,
         validate_path: bool = False,
         on_missing_key: Optional[Callable[[AST], Any]] = None,
+        iter_final_list: bool = False,
     ):
         ast = ast.update_recursively(
             fn=lambda ast, dim: self.next_dimensions(
@@ -100,6 +104,7 @@ class PathAccessor:
                 to_aligned_dim,
                 validate_path,
                 on_missing_key,
+                iter_final_list,
             ),
             context=0,
         )
@@ -115,6 +120,7 @@ class PathAccessor:
         to_aligned_dim: Optional[dict[int, int]],
         validate_path: bool,
         on_missing_key: Optional[Callable[[AST], Any]] = None,
+        iter_final_list: bool = False,
     ):
         """Generate code to access elements of dimensions of attr started at dim.
         Return the next ast, remaining dimension index, and whether it has stopped.
@@ -126,12 +132,16 @@ class PathAccessor:
             dim: starting dimension
             aligned_attr:
             to_aligned_dim:
-            validate_path: whether to generate code to check if the key of the dimension exists. If the attribute
+            validate_path: whether to generate code to check if values of each dimension is correct. If the attribute
                 is annotated with `missing_path = True`, then setting this does not have any effect.
-            type_check: whether to generate code to check if the type of the elements is correct (e.g., accessing number expecting a list or map)
             on_missing_key: a function that will be called when the key does not exist. If it is None, then we will raise an exception.
+            iter_final_list: if value type of attribute is a list, and this flag is true, we will iterate over the list to yield each item
         """
-        if dim >= len(attr.path.steps):
+        n_dim = len(attr.path.steps)
+        if attr.value_type.is_list() and iter_final_list:
+            n_dim += 1
+
+        if dim >= n_dim:
             return ast, dim, True
 
         if dim == 0:
@@ -142,8 +152,13 @@ class PathAccessor:
                 key=VarSpace.attr_value_dim(attr.resource_id, attr.id, dim - 1),
             )
 
+        if dim == len(attr.path.steps):
+            # we are iterating over the value list
+            step = path.RangeExpr(0, None, 1)
+        else:
+            step = attr.path.steps[dim]
+
         # index expr does not need nested ast.
-        step = attr.path.steps[dim]
         while isinstance(step, path.IndexExpr) and dim < len(attr.path.steps):
             # we do not need nested loop for index expression as we can just directly access the value
             c1 = Var.create(
@@ -180,7 +195,9 @@ class PathAccessor:
             dim += 1
             if dim == len(attr.path.steps):
                 # we have reached the end of the path
-                return ast, dim, True
+                # however, if the value type is a list, and we enable iter_final_list,
+                # we need the final iteration
+                return ast, dim, not (attr.value_type.is_list() and iter_final_list)
             step = attr.path.steps[dim]
 
         assert not isinstance(step, path.IndexExpr), (attr, step, dim)
@@ -239,7 +256,11 @@ class PathAccessor:
             else:
                 # the dimension is not bound, we are going to generate multiple values
                 # using a for loop
-                start_var = Var.create(mem, f"start__local_ast_{ast.id}")
+                start_var = Var.create(
+                    mem,
+                    f"start__local_ast_{ast.id}",
+                    key=("local-var", "start", f"attr={attr.id}", f"ast={ast.id}"),
+                )
                 if isinstance(step.start, path.Expr):
                     # I don't know about recursive path expression yet.
                     raise Exception(
@@ -247,7 +268,11 @@ class PathAccessor:
                     )
                 ast.assign(mem, start_var, expr.ExprConstant(step.start))
 
-                end_var = Var.create(mem, f"end__local_ast_{ast.id}")
+                end_var = Var.create(
+                    mem,
+                    f"end__local_ast_{ast.id}",
+                    key=("local-var", "end", f"attr={attr.id}", f"ast={ast.id}"),
+                )
                 if step.end is None:
                     if validate_path:
                         invok_len = DReprPredefinedFn.safe_len(
@@ -305,6 +330,7 @@ class PathAccessor:
                     expr_step_var = None
 
                 ast = ast.for_loop(
+                    mem=mem,
                     item=itemindex,
                     iter=PredefinedFn.range(
                         expr.ExprVar(start_var), expr.ExprVar(end_var), expr_step_var

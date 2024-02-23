@@ -134,4 +134,10 @@ class Cardinality(Enum):
     ManyToMany = "many-to-many"
 
     def is_star_to_many(self) -> bool:
-        return self == Cardinality.OneToMany and self == Cardinality.ManyToMany
+        return self == Cardinality.OneToMany or self == Cardinality.ManyToMany
+
+    def is_one_to_star(self) -> bool:
+        return self == Cardinality.OneToOne or self == Cardinality.OneToMany
+
+    def is_many_to_star(self) -> bool:
+        return self == Cardinality.ManyToOne or self == Cardinality.ManyToMany

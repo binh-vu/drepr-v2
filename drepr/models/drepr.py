@@ -10,7 +10,15 @@ from ruamel.yaml import YAML
 
 from drepr.utils.validator import InputError, Validator
 
-from .align import AlignedStep, Alignment, AlignmentType, RangeAlignment, ValueAlignment
+from .align import (
+    AlignedStep,
+    Alignment,
+    AlignmentType,
+    AutoAlignment,
+    IdenticalAlign,
+    RangeAlignment,
+    ValueAlignment,
+)
 from .attr import Attr
 from .parse_v1 import ReprV1Parser
 from .parse_v2 import ReprV2Parser
@@ -162,9 +170,17 @@ class DRepr:
                 attr.resource_id in resource_ids
             ), f"Attribute {attr.resource_id} does not belong to any resources"
         for align in self.aligns:
-            assert (
-                align.source in attr_ids and align.target in attr_ids
-            ), f"The alignment {align} links to non-existence attributes"
+            if isinstance(align, AutoAlignment):
+                if align.attrs is not None:
+                    assert all(
+                        attr_id in attr_ids for attr_id in align.attrs
+                    ), f"The alignment {align} links to non-existence attributes"
+            else:
+                assert (
+                    not isinstance(align, IdenticalAlign)
+                    and align.source in attr_ids
+                    and align.target in attr_ids
+                ), f"The alignment {align} links to non-existence attributes"
 
         for node in self.sm.nodes.values():
             if isinstance(node, DataNode):
@@ -408,6 +424,12 @@ class DRepr:
 
     def has_attr(self, attr_id: str) -> bool:
         return any(a.id == attr_id for a in self.attrs)
+
+    def get_attr_index_by_id(self, attr_id: str) -> int:
+        for i, a in enumerate(self.attrs):
+            if a.id == attr_id:
+                return i
+        raise KeyError(f"Attribute with id {attr_id} does not exist")
 
     def get_attr_by_id(self, attr_id: str) -> Attr:
         for a in self.attrs:

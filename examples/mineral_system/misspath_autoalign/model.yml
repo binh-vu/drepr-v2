@@ -1,0 +1,109 @@
+version: "2"
+resources: json
+attributes:
+  ms_id: ["MineralSystem", .., "id"]
+  deposit_type:
+    path: ["MineralSystem", .., "deposit_type", ..]
+  pathway_criteria:
+    path: ["MineralSystem", .., "pathway", .., "criteria"]
+  pathway_theorectical:
+    path: ["MineralSystem", .., "pathway", .., "theorectical"]
+  pathway_potential_dataset_name:
+    path: ["MineralSystem", .., "pathway", .., "potential_dataset", .., "name"]
+  pathway_potential_dataset_score:
+    path: ["MineralSystem", .., "pathway", .., "potential_dataset", .., "relevance_score"]
+  pathway_id_reference:
+    path: ["MineralSystem", .., "pathway", .., "supporting_references", .., "id"]
+  pathway_issue_document:
+    path: ["MineralSystem", .., "pathway", .., "supporting_references", .., "document", ["issue"]]
+  pathway_id_document:
+    path: ["MineralSystem", .., "pathway", .., "supporting_references", .., "document", "id"]
+  pathway_uri_document:
+    path: ["MineralSystem", .., "pathway", .., "supporting_references", .., "document", "uri"]
+  pathway_doi:
+    path: ["MineralSystem", .., "pathway", .., "supporting_references", .., "document", "doi"]
+  pathway_volume:
+    path: ["MineralSystem", .., "pathway", .., "supporting_references", .., "document", ["volume"]]
+  pathway_year_document:
+    path: ["MineralSystem", .., "pathway", .., "supporting_references", .., "document", "year"]
+  pathway_month_document:
+    path: ["MineralSystem", .., "pathway", .., "supporting_references", .., "document", "month"]
+  pathway_authors:
+    path: [MineralSystem, .., pathway, .., "supporting_references", .., "document", "authors"]
+    value_type: list[str]
+  pathway_journal:
+    path: ["MineralSystem", .., "pathway", .., "supporting_references", .., "document", ["journal"]]
+  pathway_description_document:
+    path: ["MineralSystem", .., "pathway", .., "supporting_references", .., "document", "description"]
+  pathway_title_document:
+    path: ["MineralSystem", .., "pathway", .., "supporting_references", .., "document", "title"]
+  pathway_page:
+    path: ["MineralSystem", .., "pathway", .., "supporting_references", .., "page_info", .., "page"]
+  pathway_bounding_box:
+    path: ["MineralSystem", .., "pathway", .., "supporting_references", .., "page_info", .., "bounding_box"]
+  pathway_x_min:
+    path: ["MineralSystem", .., "pathway", .., "supporting_references", .., "page_info", .., "bounding_box", "x_min"]
+  pathway_x_max:
+    path: ["MineralSystem", .., "pathway", .., "supporting_references", .., "page_info", .., "bounding_box", "x_max"]
+  pathway_y_min:
+    path: ["MineralSystem", .., "pathway", .., "supporting_references", .., "page_info", .., "bounding_box", "y_min"]
+  pathway_y_max:
+    path: ["MineralSystem", .., "pathway", .., "supporting_references", .., "page_info", .., "bounding_box", "y_max"]
+
+alignments:
+  - type: auto
+
+semantic_model:
+  mndr:MineralSystem:1:
+    properties:
+      - [mndr:id, ms_id]
+      - [mndr:deposit_type, deposit_type, drepr:uri]
+    links:
+      - [mndr:pathway, mndr:MappableCriteria:2]
+    subject: ms_id
+
+  mndr:MappableCriteria:2:
+    properties:
+      - [mndr:criteria, pathway_criteria]
+      - [mndr:theorectical, pathway_theorectical]
+    links:
+      - [mndr:potential_dataset, mndr:EvidenceLayer:2]
+      - [mndr:supporting_references, mndr:Reference:2]
+
+  mndr:EvidenceLayer:2:
+    properties:
+      - [mndr:name, pathway_potential_dataset_name]
+      - [mndr:evidence_score, pathway_potential_dataset_score]
+
+  mndr:Reference:2:
+    properties:
+      - [mndr:date, pathway_id_reference]
+    links:
+      - [mndr:document, mndr:Document:2]
+
+  mndr:Document:2:
+    properties:
+      - [drepr:uri, pathway_id_document]
+      - [mndr:id, pathway_id_document]
+      - [mndr:uri, pathway_uri_document]
+      - [mndr:doi, pathway_doi]
+      - [mndr:journal, pathway_journal]
+      - [mndr:authors, pathway_authors]
+      - [mndr:description, pathway_description_document]
+      - [mndr:title, pathway_title_document]
+      - [mndr:volume, pathway_volume]
+      - [mndr:issue, pathway_issue_document]
+      - [mndr:month, pathway_month_document]
+      - [mndr:year, pathway_year_document]
+
+  prefixes:
+    mndr: https://minmod.isi.edu/resource/
+    geokb: https://geokb.wikibase.cloud/entity/
+    rdf: http://www.w3.org/1999/02/22-rdf-syntax-ns#
+    rdfs: http://www.w3.org/2000/01/rdf-schema#
+    xsd: http://www.w3.org/2001/XMLSchema#
+    owl: http://www.w3.org/2002/07/owl#
+    drepr: https://purl.org/drepr/1.0/
+    geo: http://www.opengis.net/ont/geosparql#
+    gkbi: https://geokb.wikibase.cloud/entity/
+    gkbp: https://geokb.wikibase.cloud/wiki/Property/
