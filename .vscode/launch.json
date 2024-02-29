@@ -26,10 +26,15 @@
                 // "default=examples/mineral_site/missing_values/default.json",
                 // "--progfile",
                 // "examples/mineral_site/missing_values/program/write_to_str.py"
-                "examples/mineral_system/misspath_autoalign/model.yml",
-                "default=examples/mineral_system/misspath_autoalign/default.json",
+                // "examples/mineral_system/misspath_autoalign/model.yml",
+                // "default=examples/mineral_system/misspath_autoalign/default.json",
+                // "--progfile",
+                // "examples/mineral_system/misspath_autoalign/program/write_to_str.py",
+                // "--debuginfo"
+                "temporary/model.yml",
+                "default=temporary/default.json",
                 "--progfile",
-                "examples/mineral_system/misspath_autoalign/program/write_to_str.py",
+                "temporary/program/write_to_str.py",
                 "--debuginfo"
             ]
         },

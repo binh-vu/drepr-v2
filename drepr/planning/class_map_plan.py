@@ -350,8 +350,9 @@ class ClassMapPlan:
 
         if len(subjs) == 0:
             raise Exception(
-                "There is no subject attribute of class: {}. Users need to specify it explicitly",
-                cast(ClassNode, desc.sm.nodes[class_id]).label,
+                "There is no subject attribute of class: {} ({}). Users need to specify it explicitly".format(
+                    cast(ClassNode, desc.sm.nodes[class_id]).label, class_id
+                )
             )
 
         return ClassMapPlan.select_subject(desc, class_id, subjs, attrs, uri_attr)
