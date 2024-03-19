@@ -46,3 +46,8 @@ def example_datasets() -> dict[str, DatasetExample]:
     examples = {}
     find_examples(example_dir, example_dir, examples)
     return examples
+
+
+@pytest.fixture
+def resource_dir() -> Path:
+    return Path(__file__).parent / "resources"

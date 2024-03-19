@@ -11,6 +11,14 @@ class VarSpace:
         f"resource={resource}",
     )
     resource_data = lambda resource: (f"resource-data={resource}",)
+    preprocessing_udf_value = lambda preprocessing_id: (
+        f"preprocessing-id={preprocessing_id}",
+        "udf-value",
+    )
+    preprocessing_udf_context = lambda preprocessing_id: (
+        f"preprocessing-id={preprocessing_id}",
+        "udf-context",
+    )
     writer = lambda: ("writer",)
     attr_index_dim = lambda resource, attr, di: (
         f"resource={resource}",

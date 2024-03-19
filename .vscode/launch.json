@@ -44,10 +44,11 @@
             "request": "launch",
             "module": "pytest",
             "args": [
+                "--no-cov",
                 "-sxvvv",
                 "tests",
                 "-k",
-                "test_program_generation"
+                "test_norm_prefix_space"
             ]
         }
     ]

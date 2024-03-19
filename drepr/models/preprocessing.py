@@ -56,18 +56,31 @@ class Preprocessing:
 
     @staticmethod
     def deserialize(raw: dict):
-        type = PreprocessingType(raw['type'])
-        raw['value']['path'] = Path.deserialize(raw['value']['path'])
+        type = PreprocessingType(raw["type"])
+        raw["value"]["path"] = Path.deserialize(raw["value"]["path"])
         if type == PreprocessingType.pmap:
-            value = PMap(**raw['value'])
+            value = PMap(**raw["value"])
         elif type == PreprocessingType.pfilter:
-            value = PFilter(**raw['value'])
+            value = PFilter(**raw["value"])
         elif type == PreprocessingType.psplit:
-            value = PSplit(**raw['value'])
+            value = PSplit(**raw["value"])
         elif type == PreprocessingType.rmap:
-            value = RMap(**raw['value'])
+            value = RMap(**raw["value"])
         else:
             raise NotImplementedError()
 
         return Preprocessing(type, value)
 
+
+class Context:
+    """A special instance that is accessible when user defined function is called to allow access to
+    other information such as the index of the current item, or the nearby items.
+    """
+
+    def get_index(self) -> tuple:
+        """Get the index of the current item"""
+        raise NotImplementedError()
+
+    def get_value(self, index: tuple):
+        """Get the value of an item at a specific index"""
+        raise NotImplementedError()

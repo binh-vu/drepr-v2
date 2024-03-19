@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Literal, Optional
+from typing import Any, Callable, Literal, Optional, Protocol
 
 from codegen.models import AST, Memory, PredefinedFn, Var, expr, stmt
 from codegen.models.program import ImportManager
 
 import drepr.models.path as path
 from drepr.models.align import IdenticalAlign
-from drepr.models.path import RangeExpr
+from drepr.models.attr import AttrId
+from drepr.models.path import Path, RangeExpr
 from drepr.models.prelude import Alignment, Attr, DRepr, RangeAlignment
+from drepr.models.resource import ResourceId
 from drepr.program_generation.predefined_fn import DReprPredefinedFn
 from drepr.program_generation.program_space import VarSpace
 from drepr.utils.misc import assert_not_null

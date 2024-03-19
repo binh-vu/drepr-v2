@@ -1,0 +1,55 @@
+multilines:
+  code: |
+    print(
+      "Hello, world!"
+    )
+    return "https://minmod.isi.edu/resource/" + value
+  norm:
+    - print(\n  "Hello, world!"\n)
+    - return "https://minmod.isi.edu/resource/" + value
+if:
+  code: |
+    print(
+      "Hello, world!"
+    )
+    if is_ontology:
+      return "https://minmod.isi.edu/ontology/" + value
+    return "https://minmod.isi.edu/resource/" + value
+  norm:
+    - print(\n  "Hello, world!"\n)
+    - node: "if is_ontology:"
+      children:
+        - return "https://minmod.isi.edu/ontology/" + value
+    - return "https://minmod.isi.edu/resource/" + value
+remove_imports:
+  code: |+
+    import os, sys
+
+    print("Hello, world!")
+
+    from typing import List
+    return value.upper()
+  imports:
+    - import os, sys
+    - from typing import List
+  norm:
+    - print("Hello, world!")
+    - return value.upper()
+monitor_vars_exist:
+  code: |+
+    a = 5 * 2
+    return context.index()
+  monitor_vars:
+    context: true
+  norm:
+    - a = 5 * 2
+    - return context.index()
+monitor_vars_notexist:
+  code: |+
+    a = 5 * 2
+    return value
+  monitor_vars:
+    context: false
+  norm:
+    - a = 5 * 2
+    - return value
