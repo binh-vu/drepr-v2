@@ -1,28 +1,22 @@
 from __future__ import annotations
 
-import ast
-import re
 from dataclasses import dataclass
+from typing import Optional
 
 from codegen.models import (
     AST,
-    Memory,
-    PredefinedFn,
     Program,
     Var,
-    VarScope,
     expr,
-    memory,
-    stmt,
 )
 
 from drepr.models.attr import Attr, Sorted, ValueType
 from drepr.models.drepr import DRepr
-from drepr.models.path import Path
-from drepr.models.preprocessing import Context, PMap, Preprocessing, PreprocessingType
+from drepr.models.preprocessing import Context, PMap, PreprocessingType
 from drepr.program_generation.alignment_fn import PathAccessor
 from drepr.program_generation.predefined_fn import DReprPredefinedFn
 from drepr.program_generation.program_space import VarSpace
+from drepr.utils.udf import SourceTree, UDFParsedResult, UDFParser
 
 PreprocessingId = int
 
@@ -30,7 +24,8 @@ PreprocessingId = int
 @dataclass
 class NormedUserDefinedFn:
     name: str
-    rawcode: list[str]
+    fnvar: Var
+    udf: UDFParsedResult
     use_context: bool
 
 
@@ -168,7 +163,7 @@ class GenPreprocessing:
             new_item_value = self._call_user_defined_fn(
                 prepro_id,
                 ast,
-                item_value,
+                expr.ExprVar(item_value),
                 item_context,
             )
 
@@ -203,34 +198,7 @@ class GenPreprocessing:
         the return statement.
         """
         # detect indentation & remove it
-        lines = [x.rstrip() for x in code.splitlines()]
-        if len(lines) == 0:
-            raise ValueError(f"The code of the preprocessing {prepro_id} is empty")
-
-        m = re.match(r"^([ \t]*)", lines[0])
-        assert m is not None
-        indentation = m.group(1)
-        # now we need to remove all indentation from the code & assume that the newer code has consistent indentation
-        if not all(x.startswith(indentation) or x.strip() == "" for x in lines):
-            raise ValueError(
-                f"The code of the preprocessing {prepro_id} has inconsistent indentation"
-            )
-        lines = [x[len(indentation) :] for x in lines]
-
-        # https://stackoverflow.com/questions/32151193/is-there-a-performance-cost-putting-python-imports-inside-functions
-        # we need to move the import function outside of the preprocessing function because it's 3x slower
-        for line in lines:
-            if line.startswith("import "):
-                m = re.match(r"import ([a-zA-Z0-9_\.]+)", line)
-                assert m is not None
-                self.program.import_manager.import_(m.group(1), False)
-            elif line.startswith("from "):
-                m = re.match(r"from ([a-zA-Z0-9_\.]+) import ([a-zA-Z0-9_\.]+)", line)
-                assert m is not None
-                self.program.import_manager.import_(f"{m.group(1)}.{m.group(2)}", True)
-
-        # detect if the code uses the context variable or not.
-        use_context = any(line.find("context") != -1 for line in lines)
+        parsed_udf = UDFParser(code).parse(["context"])
 
         # now create a function containing the user-defined function
         fnname = f"preproc_{prepro_id}_customfn"
@@ -243,6 +211,8 @@ class GenPreprocessing:
                 ),
             )
         ]
+        use_context = "context" in parsed_udf.monitor_variables
+
         if use_context:
             fnargs.append(
                 Var.create(
@@ -254,26 +224,47 @@ class GenPreprocessing:
                 )
             )
 
-        udf = self.program.root.func(fnname, fnargs)
-        udf.python_stmt()
+        # create a function that will be used to create the user-defined function
+        create_udf = self.program.root.func("get_" + fnname, [])
+        for import_stmt in parsed_udf.imports:
+            create_udf.python_stmt(import_stmt)
+
+        inner_udf = create_udf.func(fnname, fnargs)
+
+        def insert_source_tree(ast: AST, tree: SourceTree):
+            assert tree.node != ""
+            for child in tree.children:
+                insert_source_tree(ast.python_stmt(child.node), child)
+
+        assert parsed_udf.source_tree.node == ""
+        insert_source_tree(inner_udf, parsed_udf.source_tree)
+
+        inner_udf.return_(expr.ExprIdent(fnname))
+
+        # now we create the user-defined function
+        fnvar = Var.create(self.memory, fnname)
+        self.program.root.assign(
+            self.memory,
+            fnvar,
+            expr.ExprFuncCall(expr.ExprIdent("get_" + fnname), []),
+        )
 
         self.user_defined_fn[prepro_id] = NormedUserDefinedFn(
-            name=fnname, rawcode=lines, use_context=use_context
+            name=fnname, udf=parsed_udf, use_context=use_context, fnvar=fnvar
         )
 
     def _call_user_defined_fn(
-        self, prepro_id: PreprocessingId, ast: AST, value, context
+        self,
+        prepro_id: PreprocessingId,
+        ast: AST,
+        value: expr.Expr,
+        context: Optional[expr.Expr],
     ) -> expr.Expr:
         """Call the user-defined function"""
-        ...
-
-    def _parse_udf(self, source_code: str):
-        """Parse the UDF code and find these information:
-
-        1. Prefix spaces
-        2.
-        """
-        ast.parse(source_code)
+        return expr.ExprFuncCall(
+            expr.ExprVar(self.user_defined_fn[prepro_id].fnvar),
+            [value, context] if context is not None else [value],
+        )
 
 
 class ContextImpl(Context):

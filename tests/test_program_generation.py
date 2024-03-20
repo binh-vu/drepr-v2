@@ -13,7 +13,15 @@ from drepr.program_generation.main import FileOutput, MemoryOutput, gen_program
 from tests.conftest import DatasetExample
 
 
-@pytest.mark.parametrize("name", ["pseudo_people", "mineral_site/missing_values"])
+@pytest.mark.parametrize(
+    "name",
+    [
+        "pseudo_people",
+        "mineral_site/missing_values",
+        "mineral_system/misspath_autoalign",
+        "resource_categories",
+    ][-1:],
+)
 def test_program_generation(
     name, example_datasets: dict[str, DatasetExample], tmp_path: Path
 ):

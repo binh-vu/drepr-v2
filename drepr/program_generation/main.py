@@ -69,7 +69,11 @@ def gen_program(
     main_fn = program.root.func("main", func_args)
 
     for resource in desc.resources:
-        var = Var.create(mem, "resource_data", key=VarSpace.resource_data(resource.id))
+        var = Var.create(
+            mem,
+            "resource_data",
+            key=VarSpace.resource_data(resource.id),
+        )
         main_fn.assign(
             mem,
             var,
@@ -134,7 +138,7 @@ def gen_program(
     program.root.if_(
         expr.ExprEqual(expr.ExprIdent("__name__"), expr.ExprConstant("__main__"))
     )(
-        stmt.ImportStatement("sys"),
+        stmt.ImportStatement("sys", False),
         stmt.LineBreak(),
         stmt.SingleExprStatement(
             expr.ExprFuncCall(expr.ExprIdent("print"), [invok_main])
