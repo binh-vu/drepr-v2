@@ -20,7 +20,7 @@ class Writer:
             raise NotImplementedError()
 
     def create_writer(self, import_manager: ImportManager, mem: Memory, ast: AST):
-        import_manager.import_(self.get_writer_clspath())
+        import_manager.import_(self.get_writer_clspath(), True)
         writer_clsname = self.get_writer_clspath().rsplit(".", 1)[-1]
         ast.assign(
             mem,

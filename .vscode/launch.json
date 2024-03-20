@@ -44,6 +44,7 @@
             "request": "launch",
             "module": "pytest",
             "args": [
+                "--no-cov",
                 "-sxvvv",
                 "tests",
                 "-k",

@@ -34,19 +34,21 @@ class DReprPredefinedFn(PredefinedFn):
     def safe_item_getter(
         import_manager: ImportManager, collection: Expr, item: Expr, msg: Expr
     ):
-        import_manager.import_("drepr.utils.safe.safe_item_getter")
+        import_manager.import_("drepr.utils.safe.safe_item_getter", True)
         return DReprPredefinedFn._safe_item_getter(collection, item, msg)
 
     @staticmethod
     def safe_len(import_manager: ImportManager, collection: Expr, msg: Expr):
-        import_manager.import_("drepr.utils.safe.safe_len")
+        import_manager.import_("drepr.utils.safe.safe_len", True)
         return DReprPredefinedFn._safe_len(collection, msg)
 
     @staticmethod
     def read_source(
         import_manager: ImportManager, source_type: ResourceType, input_file: Var
     ):
-        import_manager.import_(f"drepr.readers.prelude.read_source_{source_type.value}")
+        import_manager.import_(
+            f"drepr.readers.prelude.read_source_{source_type.value}", True
+        )
         return ExprFuncCall(
             ExprIdent(f"read_source_{source_type.value}"), [ExprVar(input_file)]
         )

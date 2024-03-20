@@ -27,6 +27,7 @@ from drepr.planning.class_map_plan import (
 )
 from drepr.program_generation.alignment_fn import AlignmentFn, PathAccessor
 from drepr.program_generation.predefined_fn import DReprPredefinedFn
+from drepr.program_generation.preprocessing import GenPreprocessing
 from drepr.program_generation.program_space import VarSpace
 from drepr.program_generation.writers import Writer
 from drepr.utils.misc import assert_not_null, assert_true
@@ -68,7 +69,11 @@ def gen_program(
     main_fn = program.root.func("main", func_args)
 
     for resource in desc.resources:
-        var = Var.create(mem, "resource_data", key=VarSpace.resource_data(resource.id))
+        var = Var.create(
+            mem,
+            "resource_data",
+            key=VarSpace.resource_data(resource.id),
+        )
         main_fn.assign(
             mem,
             var,
@@ -94,8 +99,7 @@ def gen_program(
             )
 
     # create transformation
-    for preprocess in desc.preprocessing:
-        gen_preprocess_executor(program, desc, main_fn, preprocess)
+    GenPreprocessing(program, desc, main_fn).generate()
 
     # create a writer
     writer.create_writer(program.import_manager, mem, main_fn)
@@ -134,7 +138,7 @@ def gen_program(
     program.root.if_(
         expr.ExprEqual(expr.ExprIdent("__name__"), expr.ExprConstant("__main__"))
     )(
-        stmt.ImportStatement("sys"),
+        stmt.ImportStatement("sys", False),
         stmt.LineBreak(),
         stmt.SingleExprStatement(
             expr.ExprFuncCall(expr.ExprIdent("print"), [invok_main])
@@ -545,24 +549,3 @@ def gen_classprop_body(
                         ),
                     ),
                 )
-
-
-def gen_preprocess_executor(
-    program: Program, desc: DRepr, ast: AST, preprocessing: Preprocessing
-) -> None:
-    if preprocessing.type == PreprocessingType.pmap:
-        value = preprocessing.value
-        assert isinstance(value, PMap)
-
-        # we don't support change_structure and output yet
-        assert not value.change_structure and value.output is None
-
-        raise NotImplementedError()
-
-        program.root.linebreak()
-
-        # define the transformation functionoc
-
-        return
-
-    raise NotImplementedError(preprocessing.type)
