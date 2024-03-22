@@ -1,18 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
 from functools import partial
 from pathlib import Path
 from typing import Callable
 
-from codegen.models import AST, Memory, PredefinedFn, Program, Var, VarScope, expr, stmt
-from codegen.models.program import ImportManager
-from typing_extensions import is_protocol
+from codegen.models import AST, PredefinedFn, Program, expr, stmt
+from codegen.models.var import DeferredVar
 
 from drepr.models.path import IndexExpr
-from drepr.models.prelude import Cardinality, DRepr, OutputFormat
-from drepr.models.preprocessing import PMap, Preprocessing, PreprocessingType
+from drepr.models.prelude import DRepr, OutputFormat
 from drepr.planning.class_map_plan import (
     BlankObject,
     BlankSubject,
@@ -23,14 +20,13 @@ from drepr.planning.class_map_plan import (
     IDObject,
     InternalIDSubject,
     ObjectProp,
-    Subject,
 )
 from drepr.program_generation.alignment_fn import AlignmentFn, PathAccessor
 from drepr.program_generation.predefined_fn import DReprPredefinedFn
 from drepr.program_generation.preprocessing import GenPreprocessing
 from drepr.program_generation.program_space import VarSpace
 from drepr.program_generation.writers import Writer
-from drepr.utils.misc import assert_not_null, assert_true
+from drepr.utils.misc import assert_true
 
 
 @dataclass
@@ -52,15 +48,14 @@ def gen_program(
 ) -> AST:
     """Generate a program to convert the given D-REPR to a target format"""
     program = Program()
-    mem = program.memory
-    writer = Writer(desc, output.format)
+    writer = Writer(desc, output.format, program)
 
     func_args = [
-        Var.create(mem, "resource", key=VarSpace.resource(res.id))
+        DeferredVar(name="resource", key=VarSpace.resource(res.id))
         for res in desc.resources
     ]
     if isinstance(output, FileOutput):
-        output_file = Var.create(mem, "output_file", key=VarSpace.output_file())
+        output_file = DeferredVar(name="output_file", key=VarSpace.output_file())
         func_args.append(output_file)
     else:
         output_file = None
@@ -69,18 +64,18 @@ def gen_program(
     main_fn = program.root.func("main", func_args)
 
     for resource in desc.resources:
-        var = Var.create(
-            mem,
-            "resource_data",
+        var = DeferredVar(
+            name="resource_data",
             key=VarSpace.resource_data(resource.id),
         )
         main_fn.assign(
-            mem,
             var,
             DReprPredefinedFn.read_source(
-                program.import_manager,
+                program,
                 resource.type,
-                Var.deref(mem, key=VarSpace.resource(resource.id)),
+                program.get_var(
+                    key=VarSpace.resource(resource.id), at=main_fn.next_child_id()
+                ),
             ),
         )
 
@@ -89,10 +84,8 @@ def gen_program(
     for attr in desc.attrs:
         if len(attr.missing_values) > 0:
             main_fn.assign(
-                mem,
-                Var.create(
-                    mem,
-                    f"{attr.id}_missing_values",
+                DeferredVar(
+                    name=f"{attr.id}_missing_values",
                     key=VarSpace.attr_missing_values(attr.id),
                 ),
                 expr.ExprConstant(attr.missing_values),
@@ -102,33 +95,26 @@ def gen_program(
     GenPreprocessing(program, desc, main_fn).generate()
 
     # create a writer
-    writer.create_writer(program.import_manager, mem, main_fn)
+    writer.create_writer(main_fn)
 
     # for each class node, we generate a plan for each of them.
     for classplan in exec_plan.class_map_plans:
         main_fn.linebreak()
         main_fn.comment(f"Transform records of class {classplan.class_id}")
-
-        varscope = main_fn.next_var_scope()
-
         # generate the code to execute the plan
         gen_classplan_executor(
-            program.import_manager, mem, main_fn, writer, desc, classplan, debuginfo
+            program, main_fn.block(), writer, desc, classplan, debuginfo
         )
-
-        # claim the variables that aren't going to be used anymore
-        for var in Var.find_by_scope(mem, varscope):
-            var.delete(mem)
 
     main_fn.linebreak()
     # we write the output to the file
     if isinstance(output, FileOutput):
         assert output_file is not None
-        writer.write_to_file(mem, main_fn, expr.ExprVar(output_file))
+        writer.write_to_file(main_fn, expr.ExprVar(output_file.get_var()))
     else:
-        content = Var.create(mem, "output", key=tuple())
-        writer.write_to_string(mem, main_fn, content)
-        main_fn.return_(expr.ExprVar(content))
+        content = DeferredVar(name="output")
+        writer.write_to_string(main_fn, content)
+        main_fn.return_(expr.ExprVar(content.get_var()))
 
     invok_main = expr.ExprFuncCall(
         expr.ExprIdent("main"), [expr.ExprIdent("*sys.argv[1:]")]
@@ -150,8 +136,7 @@ def gen_program(
 
 
 def gen_classplan_executor(
-    import_manager: ImportManager,
-    mem: Memory,
+    program: Program,
     parent_ast: AST,
     writer: Writer,
     desc: DRepr,
@@ -200,8 +185,7 @@ def gen_classplan_executor(
             # will handle the instance generation if there is no missing value.
             tree(stmt.NoStatement())
 
-    ast = PathAccessor(import_manager).iterate_elements(
-        mem,
+    ast = PathAccessor(program).iterate_elements(
         parent_ast,
         classplan.subject.attr,
         None,
@@ -228,36 +212,43 @@ def gen_classplan_executor(
     )
     is_buffered = can_class_missing
 
+    get_subj_val: Callable[[AST], expr.Expr]
     if isinstance(classplan.subject, (InternalIDSubject, ExternalIDSubject)):
-        get_subj_val = lambda: expr.ExprVar(
-            Var.deref(
-                mem,
+        get_subj_val = lambda ast: expr.ExprVar(
+            program.get_var(
                 key=VarSpace.attr_value_dim(
                     classplan.subject.attr.resource_id,
                     classplan.subject.attr.id,
                     len(classplan.subject.attr.path.steps) - 1,
                 ),
+                at=ast.next_child_id(),
             )
         )
     else:
         # if this is a blank node, the subj_val is the entire index that leads to the last value
-        _non_index_steps = [
-            expr.ExprConstant(desc.get_attr_index_by_id(classplan.subject.attr.id))
-        ] + [
-            expr.ExprVar(
-                Var.deref(
-                    mem,
-                    key=VarSpace.attr_index_dim(
-                        classplan.subject.attr.resource_id,
-                        classplan.subject.attr.id,
-                        dim,
-                    ),
-                )
+        get_subj_val = lambda ast: (
+            PredefinedFn.tuple(
+                [
+                    expr.ExprConstant(
+                        desc.get_attr_index_by_id(classplan.subject.attr.id)
+                    )
+                ]
+                + [
+                    expr.ExprVar(
+                        program.get_var(
+                            key=VarSpace.attr_index_dim(
+                                classplan.subject.attr.resource_id,
+                                classplan.subject.attr.id,
+                                dim,
+                            ),
+                            at=ast.next_child_id(),
+                        )
+                    )
+                    for dim, step in enumerate(classplan.subject.attr.path.steps)
+                    if not isinstance(step, IndexExpr)
+                ]
             )
-            for dim, step in enumerate(classplan.subject.attr.path.steps)
-            if not isinstance(step, IndexExpr)
-        ]
-        get_subj_val = lambda: (PredefinedFn.tuple(_non_index_steps))
+        )
 
     if (
         isinstance(classplan.subject, (InternalIDSubject, ExternalIDSubject))
@@ -272,14 +263,14 @@ def gen_classplan_executor(
                 expr.ExprNegation(
                     PredefinedFn.set_contains(
                         expr.ExprVar(
-                            Var.deref(
-                                mem,
+                            program.get_var(
                                 key=VarSpace.attr_missing_values(
                                     classplan.subject.attr.id
                                 ),
+                                at=ast.next_child_id(),
                             )
                         ),
-                        get_subj_val(),
+                        get_subj_val(ast),
                     )
                 )
             )
@@ -287,20 +278,19 @@ def gen_classplan_executor(
             ast.if_(
                 PredefinedFn.set_contains(
                     expr.ExprVar(
-                        Var.deref(
-                            mem,
+                        program.get_var(
                             key=VarSpace.attr_missing_values(classplan.subject.attr.id),
+                            at=ast.next_child_id(),
                         )
                     ),
-                    get_subj_val(),
+                    get_subj_val(ast),
                 )
             )(stmt.ContinueStatement())
 
     writer.begin_record(
-        mem,
         ast,
         class_uri,
-        get_subj_val(),
+        get_subj_val(ast),
         expr.ExprConstant(is_subj_blank),
         is_buffered,
     )
@@ -310,9 +300,8 @@ def gen_classplan_executor(
         ast.comment(f"Retrieve value of data property: {dataprop.attr.id}")
 
         gen_classprop_body(
-            import_manager,
+            program,
             desc,
-            mem,
             ast,
             writer,
             is_buffered,
@@ -326,9 +315,8 @@ def gen_classplan_executor(
         ast.comment(f"Retrieve value of object property: {objprop.attr.id}")
 
         gen_classprop_body(
-            import_manager,
+            program,
             desc,
-            mem,
             ast,
             writer,
             is_buffered,
@@ -343,19 +331,16 @@ def gen_classplan_executor(
     ast.linebreak()
 
     if isinstance(classplan.subject, BlankSubject) and can_class_missing:
-        ast.if_(writer.is_record_empty(mem, ast))(
-            lambda ast00: writer.abort_record(mem, ast00)
-        )
+        ast.if_(writer.is_record_empty(ast))(lambda ast00: writer.abort_record(ast00))
     else:
-        writer.end_record(mem, ast)
+        writer.end_record(ast)
 
     return ast
 
 
 def gen_classprop_body(
-    import_manager: ImportManager,
+    program: Program,
     desc: DRepr,
-    mem: Memory,
     ast: AST,
     writer: Writer,
     is_buffered: bool,
@@ -365,12 +350,12 @@ def gen_classprop_body(
 ):
     attr = classprop.attr
     iter_final_list = False
+    get_prop_val: Callable[[AST], expr.Expr]
     if isinstance(classprop, (DataProp, IDObject)):
         if isinstance(classprop, DataProp) and classprop.attr.value_type.is_list():
             # for a list, we need to iterate over the list.
-            get_prop_val = lambda: expr.ExprVar(
-                Var.deref(
-                    mem,
+            get_prop_val = lambda ast: expr.ExprVar(
+                program.get_var(
                     key=VarSpace.attr_value_dim(
                         attr.resource_id,
                         attr.id,
@@ -378,34 +363,35 @@ def gen_classprop_body(
                             attr.path.steps
                         ),  # not -1 because the last dimension is now a list
                     ),
+                    at=ast.next_child_id(),
                 )
             )
             iter_final_list = True
         else:
-            get_prop_val = lambda: expr.ExprVar(
-                Var.deref(
-                    mem,
+            get_prop_val = lambda ast: expr.ExprVar(
+                program.get_var(
                     key=VarSpace.attr_value_dim(
                         attr.resource_id,
                         attr.id,
                         len(attr.path.steps) - 1,
                     ),
+                    at=ast.next_child_id(),
                 )
             )
     else:
         assert isinstance(classprop, BlankObject)
-        get_prop_val = lambda: (
+        get_prop_val = lambda ast: (
             PredefinedFn.tuple(
                 [expr.ExprConstant(desc.get_attr_index_by_id(classprop.attr.id))]
                 + [
                     expr.ExprVar(
-                        Var.deref(
-                            mem,
+                        program.get_var(
                             key=VarSpace.attr_index_dim(
                                 classprop.attr.resource_id,
                                 classprop.attr.id,
                                 dim,
                             ),
+                            at=ast.next_child_id(),
                         )
                     )
                     for dim, step in enumerate(classprop.attr.path.steps)
@@ -414,30 +400,31 @@ def gen_classprop_body(
             )
         )
 
+    is_prop_val_not_missing: Callable[[AST], expr.Expr]
     if isinstance(classprop, DataProp):
         if len(attr.missing_values) == 0:
             # leverage the fact that if True will be optimized away
-            is_prop_val_not_missing = lambda: expr.ExprConstant(True)
+            is_prop_val_not_missing = lambda ast: expr.ExprConstant(True)
         else:
-            is_prop_val_not_missing = lambda: PredefinedFn.set_contains(
+            is_prop_val_not_missing = lambda ast: PredefinedFn.set_contains(
                 expr.ExprNegation(
                     expr.ExprVar(
-                        Var.deref(
-                            mem,
+                        program.get_var(
                             key=VarSpace.attr_missing_values(attr.id),
+                            at=ast.next_child_id(),
                         )
                     )
                 ),
-                get_prop_val(),
+                get_prop_val(ast),
             )
         write_fn = partial(
             writer.write_data_property, dtype=expr.ExprConstant(classprop.datatype)
         )
     else:
         assert isinstance(classprop, ObjectProp)
-        is_prop_val_not_missing = lambda: writer.has_written_record(
-            mem,
-            get_prop_val(),
+        is_prop_val_not_missing = lambda ast: writer.has_written_record(
+            ast,
+            get_prop_val(ast),
         )
         write_fn = partial(
             writer.write_object_property,
@@ -447,20 +434,18 @@ def gen_classprop_body(
         )
 
     if not classprop.can_target_missing:
-        AlignmentFn(desc, import_manager).align(
-            mem, ast, classprop.alignments, debuginfo, None, iter_final_list
+        AlignmentFn(desc, program).align(
+            ast, classprop.alignments, debuginfo, None, iter_final_list
         )(
             lambda ast_l0: write_fn(
-                mem,
                 ast_l0,
                 expr.ExprConstant(classprop.predicate),
-                get_prop_val(),
+                get_prop_val(ast_l0),
             )
         )
     else:
         if classprop.is_optional:
-            AlignmentFn(desc, import_manager).align(
-                mem,
+            AlignmentFn(desc, program).align(
                 ast,
                 classprop.alignments,
                 debuginfo,
@@ -468,44 +453,42 @@ def gen_classprop_body(
                 on_missing_key=lambda astxx: astxx(stmt.NoStatement()),
                 iter_final_list=iter_final_list,
             )(
-                lambda ast00: ast00.if_(is_prop_val_not_missing())(
+                lambda ast00: ast00.if_(is_prop_val_not_missing(ast00))(
                     lambda ast01: write_fn(
-                        mem,
                         ast01,
                         expr.ExprConstant(classprop.predicate),
-                        get_prop_val(),
+                        get_prop_val(ast01),
                     )
                 )
             )
         else:
             if classprop.alignments_cardinality.is_star_to_many():
-                has_dataprop_val = Var.create(
-                    mem,
-                    f"{attr.id}_has_value_d{len(attr.path.steps) - 1}",
+                has_dataprop_val = DeferredVar(
+                    name=f"{attr.id}_has_value_d{len(attr.path.steps) - 1}",
                     key=VarSpace.has_attr_value_dim(
                         attr.resource_id,
                         attr.id,
                         len(attr.path.steps) - 1,
                     ),
                 )
-                ast.assign(mem, has_dataprop_val, expr.ExprConstant(False))
-                AlignmentFn(desc, import_manager).align(
-                    mem,
+                ast.assign(has_dataprop_val, expr.ExprConstant(False))
+                has_dataprop_val = has_dataprop_val.get_var()
+
+                AlignmentFn(desc, program).align(
                     ast,
                     classprop.alignments,
                     debuginfo,
                     lambda astxx: astxx(stmt.NoStatement()),
                     iter_final_list,
                 )(
-                    lambda ast00: ast00.if_(is_prop_val_not_missing())(
+                    lambda ast00: ast00.if_(is_prop_val_not_missing(ast00))(
                         lambda ast01: ast01.assign(
-                            mem, has_dataprop_val, expr.ExprConstant(True)
+                            has_dataprop_val, expr.ExprConstant(True)
                         ),
                         lambda ast02: write_fn(
-                            mem,
                             ast02,
                             expr.ExprConstant(classprop.predicate),
-                            get_prop_val(),
+                            get_prop_val(ast02),
                         ),
                     )
                 )
@@ -515,12 +498,11 @@ def gen_classprop_body(
                             is_buffered,
                             "We should only abort record if we are buffering",
                         )
-                        and writer.abort_record(mem, ast00)
+                        and writer.abort_record(ast00)
                     )
                 )
             else:
-                AlignmentFn(desc, import_manager).align(
-                    mem,
+                AlignmentFn(desc, program).align(
                     ast,
                     classprop.alignments,
                     debuginfo,
@@ -528,15 +510,14 @@ def gen_classprop_body(
                         is_buffered,
                         "We should only abort record if we are buffering",
                     )
-                    and writer.abort_record(mem, astxx),
+                    and writer.abort_record(astxx),
                     iter_final_list=iter_final_list,
                 )(
-                    lambda ast00: ast00.if_(is_prop_val_not_missing())(
+                    lambda ast00: ast00.if_(is_prop_val_not_missing(ast00))(
                         lambda ast01: write_fn(
-                            mem,
                             ast01,
                             expr.ExprConstant(classprop.predicate),
-                            get_prop_val(),
+                            get_prop_val(ast01),
                         ),
                     ),
                     lambda ast10: ast10.else_()(
@@ -545,7 +526,7 @@ def gen_classprop_body(
                                 is_buffered,
                                 "We should only abort record if we are buffering",
                             )
-                            and writer.abort_record(mem, ast11)
+                            and writer.abort_record(ast11)
                         ),
                     ),
                 )

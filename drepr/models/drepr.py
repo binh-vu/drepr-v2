@@ -328,7 +328,7 @@ class DRepr:
                         "node_id": node_id,
                         "attr_id": aidmap[node.attr_id],
                         "data_type": (
-                            node.data_type.value if node.data_type is not None else None
+                            node.data_type if node.data_type is not None else None
                         ),
                     }
                 )
@@ -339,7 +339,7 @@ class DRepr:
                         "node_id": node_id,
                         "val": self._serde_engine_value(node.value),
                         "data_type": (
-                            node.data_type.value if node.data_type is not None else None
+                            node.data_type if node.data_type is not None else None
                         ),
                     }
                 )

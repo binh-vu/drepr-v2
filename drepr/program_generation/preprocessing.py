@@ -3,15 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from codegen.models import (
-    AST,
-    Program,
-    Var,
-    expr,
-)
+from codegen.models import AST, Program, Var, expr
+from codegen.models.var import DeferredVar
 
 from drepr.models.attr import Attr, Sorted, ValueType
 from drepr.models.drepr import DRepr
+from drepr.models.path import IndexExpr, RangeExpr
 from drepr.models.preprocessing import Context, PMap, PreprocessingType
 from drepr.program_generation.alignment_fn import PathAccessor
 from drepr.program_generation.predefined_fn import DReprPredefinedFn
@@ -24,7 +21,7 @@ PreprocessingId = int
 @dataclass
 class NormedUserDefinedFn:
     name: str
-    fnvar: Var
+    fnvar: expr.Expr
     udf: UDFParsedResult
     use_context: bool
 
@@ -34,7 +31,6 @@ class GenPreprocessing:
 
     def __init__(self, program: Program, desc: DRepr, call_preproc_ast: AST):
         self.program = program
-        self.memory = program.memory
         self.call_preproc_ast = call_preproc_ast
         self.desc = desc
 
@@ -52,13 +48,13 @@ class GenPreprocessing:
         prepro_fn = self.program.root.func(
             genfn_name,
             [
-                Var.create(
-                    self.memory,
-                    "resource_data",
+                DeferredVar(
+                    name="resource_data",
                     key=VarSpace.resource_data(preprocessing.value.resource_id),
                 ),
             ],
         )
+        self.program.root.linebreak()
 
         if preprocessing.type == PreprocessingType.pmap:
             value = preprocessing.value
@@ -74,11 +70,11 @@ class GenPreprocessing:
                     expr.ExprIdent(genfn_name),
                     [
                         expr.ExprVar(
-                            Var.deref(
-                                self.memory,
+                            self.program.get_var(
                                 key=VarSpace.resource_data(
                                     preprocessing.value.resource_id
                                 ),
+                                at=self.call_preproc_ast.next_child_id(),
                             )
                         ),
                     ],
@@ -102,34 +98,47 @@ class GenPreprocessing:
                 sorted=Sorted.Null,
                 value_type=ValueType.UnspecifiedSingle,
             )
-            ast = PathAccessor(self.program.import_manager).iterate_elements(
-                mem=self.memory,
+            ast = PathAccessor(self.program).iterate_elements(
                 ast=prepro_fn,
                 attr=pseudo_attr,
             )
 
             # get item value & item context
-            item_value = Var.deref(
-                self.memory,
+            item_value = self.program.get_var(
                 key=VarSpace.attr_value_dim(
                     pseudo_attr.resource_id,
                     pseudo_attr.id,
                     len(pseudo_attr.path.steps) - 1,
                 ),
+                at=ast.next_child_id(),
             )
             if len(pseudo_attr.path.steps) > 1:
-                parent_item_value = Var.deref(
-                    self.memory,
+                parent_item_value = self.program.get_var(
                     key=VarSpace.attr_value_dim(
                         pseudo_attr.resource_id,
                         pseudo_attr.id,
                         len(pseudo_attr.path.steps) - 2,
                     ),
+                    at=ast.next_child_id(),
                 )
             else:
-                parent_item_value = Var.deref(
-                    self.memory,
+                parent_item_value = self.program.get_var(
                     key=VarSpace.resource_data(pseudo_attr.resource_id),
+                    at=ast.next_child_id(),
+                )
+
+            if isinstance(pseudo_attr.path.steps[-1], IndexExpr):
+                parent_item_index = expr.ExprConstant(pseudo_attr.path.steps[-1].val)
+            else:
+                parent_item_index = expr.ExprVar(
+                    self.program.get_var(
+                        key=VarSpace.attr_index_dim(
+                            pseudo_attr.resource_id,
+                            pseudo_attr.id,
+                            len(pseudo_attr.path.steps) - 1,
+                        ),
+                        at=ast.next_child_id(),
+                    )
                 )
 
             if self.user_defined_fn[prepro_id].use_context:
@@ -171,16 +180,7 @@ class GenPreprocessing:
             ast.expr(
                 DReprPredefinedFn.item_setter(
                     expr.ExprVar(parent_item_value),
-                    expr.ExprVar(
-                        Var.deref(
-                            self.memory,
-                            key=VarSpace.attr_index_dim(
-                                pseudo_attr.resource_id,
-                                pseudo_attr.id,
-                                len(pseudo_attr.path.steps) - 1,
-                            ),
-                        )
-                    ),
+                    parent_item_index,
                     new_item_value,
                 )
             )
@@ -203,51 +203,73 @@ class GenPreprocessing:
         # now create a function containing the user-defined function
         fnname = f"preproc_{prepro_id}_customfn"
         fnargs = [
-            Var.create(
-                self.memory,
-                "value",
+            DeferredVar(
+                name="value",
                 key=VarSpace.preprocessing_udf_value(
                     self.desc.preprocessing[prepro_id].value.resource_id
                 ),
+                force_name="value",
             )
         ]
         use_context = "context" in parsed_udf.monitor_variables
 
         if use_context:
             fnargs.append(
-                Var.create(
-                    self.memory,
-                    "context",
+                DeferredVar(
+                    name="context",
                     key=VarSpace.preprocessing_udf_context(
                         self.desc.preprocessing[prepro_id].value.resource_id
                     ),
+                    force_name="context",
                 )
             )
 
-        # create a function that will be used to create the user-defined function
-        create_udf = self.program.root.func("get_" + fnname, [])
-        for import_stmt in parsed_udf.imports:
-            create_udf.python_stmt(import_stmt)
+        if len(parsed_udf.imports) > 0:
+            # create a function that will be used to create the user-defined function
+            create_udf = self.program.root.func("get_" + fnname, [])
+            self.program.root.linebreak()
 
-        inner_udf = create_udf.func(fnname, fnargs)
+            for import_stmt in parsed_udf.imports:
+                create_udf.python_stmt(import_stmt)
 
-        def insert_source_tree(ast: AST, tree: SourceTree):
-            assert tree.node != ""
-            for child in tree.children:
-                insert_source_tree(ast.python_stmt(child.node), child)
+            inner_udf = create_udf.func(fnname, fnargs)
+            create_udf.return_(expr.ExprIdent(fnname))
 
-        assert parsed_udf.source_tree.node == ""
-        insert_source_tree(inner_udf, parsed_udf.source_tree)
+            def insert_source_tree(ast: AST, tree: SourceTree):
+                assert tree.node != ""
+                ast = ast.python_stmt(tree.node)
+                for child in tree.children:
+                    insert_source_tree(ast, child)
 
-        inner_udf.return_(expr.ExprIdent(fnname))
+            assert parsed_udf.source_tree.node == ""
+            assert len(parsed_udf.source_tree.children) > 0
+            for child in parsed_udf.source_tree.children:
+                insert_source_tree(inner_udf, child)
 
-        # now we create the user-defined function
-        fnvar = Var.create(self.memory, fnname)
-        self.program.root.assign(
-            self.memory,
-            fnvar,
-            expr.ExprFuncCall(expr.ExprIdent("get_" + fnname), []),
-        )
+            # now we create the user-defined function
+            fnvar = DeferredVar(fnname)
+            self.program.root.assign(
+                fnvar,
+                expr.ExprFuncCall(expr.ExprIdent("get_" + fnname), []),
+            )
+            fnvar = expr.ExprVar(fnvar.get_var())
+        else:
+            inner_udf = self.program.root.func(fnname, fnargs)
+            self.program.root.linebreak()
+
+            def insert_source_tree(ast: AST, tree: SourceTree):
+                assert tree.node != ""
+                ast = ast.python_stmt(tree.node)
+                for child in tree.children:
+                    insert_source_tree(ast, child)
+
+            assert parsed_udf.source_tree.node == ""
+            assert len(parsed_udf.source_tree.children) > 0
+            for child in parsed_udf.source_tree.children:
+                insert_source_tree(inner_udf, child)
+
+            # now we create the user-defined function
+            fnvar = expr.ExprIdent(fnname)
 
         self.user_defined_fn[prepro_id] = NormedUserDefinedFn(
             name=fnname, udf=parsed_udf, use_context=use_context, fnvar=fnvar
@@ -262,7 +284,7 @@ class GenPreprocessing:
     ) -> expr.Expr:
         """Call the user-defined function"""
         return expr.ExprFuncCall(
-            expr.ExprVar(self.user_defined_fn[prepro_id].fnvar),
+            self.user_defined_fn[prepro_id].fnvar,
             [value, context] if context is not None else [value],
         )
 

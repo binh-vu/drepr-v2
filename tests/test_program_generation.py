@@ -35,7 +35,12 @@ def test_program_generation(
     ).to_python()
     if not (ds.cwd / f"program/write_to_str.py").exists():
         (ds.cwd / f"program/write_to_str.auto.py").write_text(prog)
-    assert prog == (ds.cwd / f"program/write_to_str.py").read_text()
+
+    if prog != (ds.cwd / f"program/write_to_str.py").read_text():
+        (ds.cwd / f"program/write_to_str.auto.py").write_text(prog)
+        pytest.fail(
+            "The generated program is different from the expected program. Please check the file: program/write_to_str.auto.py"
+        )
 
     prog = gen_program(
         model,
@@ -45,4 +50,8 @@ def test_program_generation(
     ).to_python()
     if not (ds.cwd / f"program/write_to_file.py").exists():
         (ds.cwd / f"program/write_to_file.auto.py").write_text(prog)
-    assert prog == (ds.cwd / f"program/write_to_file.py").read_text()
+    if prog != (ds.cwd / f"program/write_to_file.py").read_text():
+        (ds.cwd / f"program/write_to_file.auto.py").write_text(prog)
+        pytest.fail(
+            "The generated program is different from the expected program. Please check the file: program/write_to_file.auto.py"
+        )

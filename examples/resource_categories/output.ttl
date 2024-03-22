@@ -1,0 +1,28 @@
+@prefix mndr: <https://minmod.isi.edu/resource/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+mndr:CumulativeExtracted a mndr:ResourceReserveCategory ;
+    rdfs:label "CumulativeExtracted"^^xsd:string .
+
+mndr:Extracted a mndr:ResourceReserveCategory ;
+    rdfs:label "Extracted"^^xsd:string .
+
+mndr:Indicated a mndr:ResourceReserveCategory ;
+    rdfs:label "Indicated"^^xsd:string .
+
+mndr:Inferred a mndr:ResourceReserveCategory ;
+    rdfs:label "Inferred"^^xsd:string .
+
+mndr:Measured a mndr:ResourceReserveCategory ;
+    rdfs:label "Measured"^^xsd:string .
+
+mndr:OriginalResource a mndr:ResourceReserveCategory ;
+    rdfs:label "OriginalResource"^^xsd:string .
+
+mndr:Probable a mndr:ResourceReserveCategory ;
+    rdfs:label "Probable"^^xsd:string .
+
+mndr:Proven a mndr:ResourceReserveCategory ;
+    rdfs:label "Proven"^^xsd:string .
+

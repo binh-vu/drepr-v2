@@ -1,0 +1,101 @@
+@prefix schema1: <http://schema.org/> .
+
+<http://example.org/people/0> a schema1:Person ;
+    schema1:address [ a schema1:PostalAddress ;
+            schema1:addressLocality "city_0" ;
+            schema1:addressRegion "state_0" ;
+            schema1:postalCode "zipcode_0" ;
+            schema1:streetAddress "street_0" ] ;
+    schema1:name "name_0" ;
+    schema1:telephone "phone_0" .
+
+<http://example.org/people/1> a schema1:Person ;
+    schema1:address [ a schema1:PostalAddress ;
+            schema1:addressLocality "city_1" ;
+            schema1:addressRegion "state_1" ;
+            schema1:postalCode "zipcode_1" ;
+            schema1:streetAddress "street_1" ] ;
+    schema1:name "name_1" ;
+    schema1:telephone "phone_1" .
+
+<http://example.org/people/10> a schema1:Person ;
+    schema1:address [ a schema1:PostalAddress ;
+            schema1:addressLocality "city_10" ;
+            schema1:addressRegion "state_10" ;
+            schema1:postalCode "zipcode_10" ;
+            schema1:streetAddress "street_10" ] ;
+    schema1:name "name_10" ;
+    schema1:telephone "phone_10" .
+
+<http://example.org/people/2> a schema1:Person ;
+    schema1:address [ a schema1:PostalAddress ;
+            schema1:addressLocality "city_2" ;
+            schema1:addressRegion "state_2" ;
+            schema1:postalCode "zipcode_2" ;
+            schema1:streetAddress "street_2" ] ;
+    schema1:name "name_2" ;
+    schema1:telephone "phone_2" .
+
+<http://example.org/people/3> a schema1:Person ;
+    schema1:address [ a schema1:PostalAddress ;
+            schema1:addressLocality "city_3" ;
+            schema1:addressRegion "state_3" ;
+            schema1:postalCode "zipcode_3" ;
+            schema1:streetAddress "street_3" ] ;
+    schema1:name "name_3" ;
+    schema1:telephone "phone_3" .
+
+<http://example.org/people/4> a schema1:Person ;
+    schema1:address [ a schema1:PostalAddress ;
+            schema1:addressLocality "city_4" ;
+            schema1:addressRegion "state_4" ;
+            schema1:postalCode "zipcode_4" ;
+            schema1:streetAddress "street_4" ] ;
+    schema1:name "name_4" ;
+    schema1:telephone "phone_4" .
+
+<http://example.org/people/5> a schema1:Person ;
+    schema1:address [ a schema1:PostalAddress ;
+            schema1:addressLocality "city_5" ;
+            schema1:addressRegion "state_5" ;
+            schema1:postalCode "zipcode_5" ;
+            schema1:streetAddress "street_5" ] ;
+    schema1:name "name_5" ;
+    schema1:telephone "phone_5" .
+
+<http://example.org/people/6> a schema1:Person ;
+    schema1:address [ a schema1:PostalAddress ;
+            schema1:addressLocality "city_6" ;
+            schema1:addressRegion "state_6" ;
+            schema1:postalCode "zipcode_6" ;
+            schema1:streetAddress "street_6" ] ;
+    schema1:name "name_6" ;
+    schema1:telephone "phone_6" .
+
+<http://example.org/people/7> a schema1:Person ;
+    schema1:address [ a schema1:PostalAddress ;
+            schema1:addressLocality "city_7" ;
+            schema1:addressRegion "state_7" ;
+            schema1:postalCode "zipcode_7" ;
+            schema1:streetAddress "street_7" ] ;
+    schema1:name "name_7" ;
+    schema1:telephone "phone_7" .
+
+<http://example.org/people/8> a schema1:Person ;
+    schema1:address [ a schema1:PostalAddress ;
+            schema1:addressLocality "city_8" ;
+            schema1:addressRegion "state_8" ;
+            schema1:postalCode "zipcode_8" ;
+            schema1:streetAddress "street_8" ] ;
+    schema1:name "name_8" ;
+    schema1:telephone "phone_8" .
+
+<http://example.org/people/9> a schema1:Person ;
+    schema1:address [ a schema1:PostalAddress ;
+            schema1:addressLocality "city_9" ;
+            schema1:addressRegion "state_9" ;
+            schema1:postalCode "zipcode_9" ;
+            schema1:streetAddress "street_9" ] ;
+    schema1:name "name_9" ;
+    schema1:telephone "phone_9" .
+

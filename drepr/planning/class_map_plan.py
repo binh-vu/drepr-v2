@@ -17,10 +17,8 @@ from drepr.models.prelude import (
     LiteralNode,
     NodeId,
 )
-from drepr.models.sm import DataType
 from drepr.planning.drepr_model_alignments import DReprModelAlignments
 from drepr.planning.topological_sorting import topological_sorting
-from drepr.utils.misc import assert_not_null
 
 
 @dataclass
@@ -212,7 +210,7 @@ class ClassMapPlan:
                             missing_values=set(attribute.missing_values),
                             missing_path=attribute.path.has_optional_steps(),
                             datatype=(
-                                target.data_type.value
+                                target.data_type
                                 if target.data_type is not None
                                 else None
                             ),

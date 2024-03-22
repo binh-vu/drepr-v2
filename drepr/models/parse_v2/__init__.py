@@ -105,7 +105,7 @@ class ReprV2Parser:
                     e for e in drepr.sm.edges.values() if e.target_id == node.node_id
                 ]:
                     if node.data_type is not None:
-                        prop = (edge.label, node.attr_id, node.data_type.value)
+                        prop = (edge.label, node.attr_id, node.data_type.get_rel_uri())
                     else:
                         prop = (edge.label, node.attr_id)
                     sm[class_ids[edge.source_id]]["properties"].append(prop)
@@ -115,7 +115,7 @@ class ReprV2Parser:
                     e for e in drepr.sm.edges.values() if e.target_id == node.node_id
                 ]:
                     if node.data_type is not None:
-                        prop = (edge.label, node.value, node.data_type.value)
+                        prop = (edge.label, node.value, node.data_type.get_rel_uri())
                     else:
                         prop = (edge.label, node.value)
                     sm[class_ids[edge.source_id]]["static_properties"].append(prop)
@@ -138,9 +138,9 @@ class ReprV2Parser:
                     (edge.label, class_ids[edge.target_id])
                 )
             if edge.is_subject:
-                sm[class_ids[edge.source_id]]["subject"] = drepr.sm.nodes[
-                    edge.target_id
-                ].attr_id
+                v = drepr.sm.nodes[edge.target_id]
+                assert isinstance(v, DataNode)
+                sm[class_ids[edge.source_id]]["subject"] = v.attr_id
 
         sm["prefixes"] = drepr.sm.prefixes
 

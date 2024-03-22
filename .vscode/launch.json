@@ -5,6 +5,12 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python Debugger: Module",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "drepr.models.sm"
+        },
+        {
             "name": "Python Debugger: Current File with Arguments",
             "type": "debugpy",
             "request": "launch",
@@ -22,6 +28,12 @@
             "request": "launch",
             "module": "drepr",
             "args": [
+                // "examples/pseudo_people/model.yml",
+                // "default=examples/pseudo_people/default.json",
+                // "--progfile",
+                // "examples/pseudo_people/program/write_to_file.py",
+                // "--outfile",
+                // "examples/pseudo_people/output.ttl"
                 // "examples/mineral_site/missing_values/model.yml",
                 // "default=examples/mineral_site/missing_values/default.json",
                 // "--progfile",
@@ -31,11 +43,15 @@
                 // "--progfile",
                 // "examples/mineral_system/misspath_autoalign/program/write_to_str.py",
                 // "--debuginfo"
-                "temporary/model.yml",
-                "default=temporary/default.json",
+                "examples/resource_categories/model.yml",
+                "default=examples/resource_categories/categories.csv",
                 "--progfile",
-                "temporary/program/write_to_str.py",
-                "--debuginfo"
+                "examples/resource_categories/program/write_to_str.py",
+                // "temporary/model.yml",
+                // "default=temporary/default.json",
+                // "--progfile",
+                // "temporary/program/write_to_str.py",
+                // "--debuginfo"
             ]
         },
         {

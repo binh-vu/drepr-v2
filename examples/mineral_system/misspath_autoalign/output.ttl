@@ -1,0 +1,51 @@
+@prefix drepr: <https://purl.org/drepr/1.0/> .
+@prefix mndr: <https://minmod.isi.edu/resource/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<doc_id> a mndr:Document ;
+    mndr:authors "Brian Thomas P.Geo.",
+        "Manochehr Oliazadeh Khorakchy P.Eng.",
+        "Paul Palmer P.Geo. P.Eng." ;
+    mndr:description "This is the first independent technical report for the Tamarack North Project in Tamarack, Minnesota, prepared for Talon Metals Corp." ;
+    mndr:doi "https://w3id.org/usgs/z/4530692/XM7ACJDK" ;
+    mndr:id "doc_id" ;
+    mndr:month 8 ;
+    mndr:title "NI 43-101 Technical Report for the Tamarack North Project in Minnesota, United States dated August 2014" ;
+    mndr:uri "hgvhvhjvhjvjvjhj" ;
+    mndr:year 2014 .
+
+<doc_id_2> a mndr:Document ;
+    mndr:authors "Brian Thomas P.Geo.",
+        "Manochehr Oliazadeh Khorakchy P.Eng.",
+        "Paul Palmer P.Geo. P.Eng." ;
+    mndr:description "This is the first independent technical report for the Tamarack North Project in Tamarack, Minnesota, prepared for Talon Metals Corp." ;
+    mndr:doi "https://w3id.org/usgs/z/4530692/XM7ACJDK" ;
+    mndr:id "doc_id_2" ;
+    mndr:month 8 ;
+    mndr:title "NI 43-101 Technical Report for the Tamarack North Project in Minnesota, United States dated August 2014" ;
+    mndr:uri "hgvhvhjvhjvjvjhj" ;
+    mndr:year 2014 .
+
+[] a mndr:MineralSystem ;
+    mndr:deposit_type "https://minmod.isi.edu/resource/Q484"^^drepr:uri,
+        "https://minmod.isi.edu/resource/Q485"^^drepr:uri ;
+    mndr:id "jvdjhdsvjhfhjsdgfkdfkgdsk" ;
+    mndr:pathway [ a mndr:MappableCriteria ;
+            mndr:criteria "The paragraph suggests that extensional faults and dolomitization of limestone are mappable criteria that represent the pathway for the formation and localization of syn-diagenetic Zn-Pb deposits in the MVT deposit type." ;
+            mndr:potential_dataset [ a mndr:EvidenceLayer ;
+                    mndr:evidence_score 5e-01 ;
+                    mndr:name "A Random name" ],
+                [ a mndr:EvidenceLayer ;
+                    mndr:evidence_score 5e-01 ;
+                    mndr:name "A Random name returns" ],
+                [ a mndr:EvidenceLayer ;
+                    mndr:evidence_score 5e-01 ;
+                    mndr:name "A night of the random names" ] ;
+            mndr:supporting_references [ a mndr:Reference ;
+                    mndr:date "dbkfbdskf" ;
+                    mndr:document <doc_id> ],
+                [ a mndr:Reference ;
+                    mndr:date "jhdfjhsgdjfgdjsfgjhfsgjg" ;
+                    mndr:document <doc_id_2> ] ;
+            mndr:theorectical "Randome name strikes back" ] .
+

@@ -1,34 +1,24 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Literal, Optional, Protocol
+from typing import Any, Callable, Literal, Optional
 
-from codegen.models import AST, Memory, PredefinedFn, Var, expr, stmt
-from codegen.models.program import ImportManager
+from codegen.models import AST, DeferredVar, PredefinedFn, Program, Var, expr, stmt
 
 import drepr.models.path as path
 from drepr.models.align import IdenticalAlign
-from drepr.models.attr import AttrId
-from drepr.models.path import Path, RangeExpr
 from drepr.models.prelude import Alignment, Attr, DRepr, RangeAlignment
-from drepr.models.resource import ResourceId
 from drepr.program_generation.predefined_fn import DReprPredefinedFn
 from drepr.program_generation.program_space import VarSpace
-from drepr.utils.misc import assert_not_null
 
 
 class AlignmentFn:
 
-    def __init__(
-        self,
-        desc: DRepr,
-        import_manager: ImportManager,
-    ):
+    def __init__(self, desc: DRepr, program: Program):
         self.desc = desc
-        self.import_manager = import_manager
+        self.program = program
 
     def align(
         self,
-        mem: Memory,
         ast: AST,
         aligns: list[Alignment],
         validate_path: bool,
@@ -38,7 +28,7 @@ class AlignmentFn:
         for align in aligns:
             if isinstance(align, RangeAlignment):
                 ast = self.align_by_range(
-                    mem, ast, align, validate_path, on_missing_key, iter_final_list
+                    ast, align, validate_path, on_missing_key, iter_final_list
                 )
             elif isinstance(align, IdenticalAlign):
                 # this is the alignment between the same attribute
@@ -49,7 +39,6 @@ class AlignmentFn:
 
     def align_by_range(
         self,
-        mem: Memory,
         ast: AST,
         align: RangeAlignment,
         validate_path: bool,
@@ -67,8 +56,7 @@ class AlignmentFn:
         to_aligned_dim = {
             step.target_idx: step.source_idx for step in align.aligned_steps
         }
-        return PathAccessor(self.import_manager).iterate_elements(
-            mem,
+        return PathAccessor(self.program).iterate_elements(
             ast,
             target,
             aligned_attr=source,
@@ -82,12 +70,11 @@ class AlignmentFn:
 class PathAccessor:
     """Generate code to access elements (indices & values) of an attribute"""
 
-    def __init__(self, import_manager: ImportManager):
-        self.import_manager = import_manager
+    def __init__(self, program: Program):
+        self.program = program
 
     def iterate_elements(
         self,
-        mem: Memory,
         ast: AST,
         attr: Attr,
         aligned_attr: Optional[Attr] = None,
@@ -98,7 +85,6 @@ class PathAccessor:
     ):
         ast = ast.update_recursively(
             fn=lambda ast, dim: self.next_dimensions(
-                mem,
                 ast,
                 attr,
                 dim,
@@ -114,7 +100,6 @@ class PathAccessor:
 
     def next_dimensions(
         self,
-        mem: Memory,
         ast: AST,
         attr: Attr,
         dim: int,
@@ -147,11 +132,13 @@ class PathAccessor:
             return ast, dim, True
 
         if dim == 0:
-            collection = Var.deref(mem, key=VarSpace.resource_data(attr.resource_id))
+            collection = self.program.get_var(
+                key=VarSpace.resource_data(attr.resource_id), at=ast.next_child_id()
+            )
         else:
-            collection = Var.deref(
-                mem,
+            collection = self.program.get_var(
                 key=VarSpace.attr_value_dim(attr.resource_id, attr.id, dim - 1),
+                at=ast.next_child_id(),
             )
 
         if dim == len(attr.path.steps):
@@ -163,8 +150,7 @@ class PathAccessor:
         # index expr does not need nested ast.
         while isinstance(step, path.IndexExpr) and dim < len(attr.path.steps):
             # we do not need nested loop for index expression as we can just directly access the value
-            c1 = Var.create(
-                mem,
+            c1 = DeferredVar(
                 name=f"{attr.id}_value_{dim}",
                 key=VarSpace.attr_value_dim(attr.resource_id, attr.id, dim),
             )
@@ -183,7 +169,6 @@ class PathAccessor:
                 handle_missing_key = "no_missing_key"
 
             ast = self.access_key(
-                mem,
                 ast,
                 attr,
                 expr.ExprVar(collection),
@@ -193,7 +178,7 @@ class PathAccessor:
                 handle_missing_key,
             )
 
-            collection = c1
+            collection = c1.get_var()
             dim += 1
             if dim == len(attr.path.steps):
                 # we have reached the end of the path
@@ -207,13 +192,11 @@ class PathAccessor:
         # other exprs require nested statement (for loop)
 
         if isinstance(step, path.RangeExpr):
-            itemindex = Var.create(
-                mem,
+            itemindex = DeferredVar(
                 name=f"{attr.id}_index_{dim}",
                 key=VarSpace.attr_index_dim(attr.resource_id, attr.id, dim),
             )
-            itemvalue = Var.create(
-                mem,
+            itemvalue = DeferredVar(
                 name=f"{attr.id}_value_{dim}",
                 key=VarSpace.attr_value_dim(attr.resource_id, attr.id, dim),
             )
@@ -224,24 +207,25 @@ class PathAccessor:
                 # so we need to copy the value
                 assert aligned_attr is not None
                 aligned_dim = to_aligned_dim[dim]
-                aligned_dim_index = Var.deref(
-                    mem,
+                aligned_dim_index = self.program.get_var(
                     key=VarSpace.attr_index_dim(
                         aligned_attr.resource_id, aligned_attr.id, aligned_dim
                     ),
+                    at=ast.next_child_id(),
                 )
 
                 if step == aligned_attr.path.steps[aligned_dim]:
                     # now if the start, end, and step between the two attrs are the same, we just copy the value
                     # otherwise, we need to readjust the index
-                    ast.assign(mem, itemindex, expr.ExprVar(aligned_dim_index))
+                    ast.assign(itemindex, expr.ExprVar(aligned_dim_index))
                 else:
                     # recalculate the index
                     raise NotImplementedError()
 
+                itemindex = itemindex.get_var()
                 if validate_path:
                     invok_item_getter = DReprPredefinedFn.safe_item_getter(
-                        self.import_manager,
+                        self.program,
                         expr.ExprVar(collection),
                         expr.ExprVar(itemindex),
                         expr.ExprConstant(
@@ -254,13 +238,13 @@ class PathAccessor:
                         expr.ExprVar(collection), expr.ExprVar(itemindex)
                     )
 
-                ast.assign(mem, itemvalue, invok_item_getter)
+                ast.assign(itemvalue, invok_item_getter)
+                itemvalue = itemvalue.get_var()
             else:
                 # the dimension is not bound, we are going to generate multiple values
                 # using a for loop
-                start_var = Var.create(
-                    mem,
-                    f"start__local_ast_{ast.id}",
+                start_var = DeferredVar(
+                    name=f"start",
                     key=("local-var", "start", f"attr={attr.id}", f"ast={ast.id}"),
                 )
                 if isinstance(step.start, path.Expr):
@@ -268,17 +252,17 @@ class PathAccessor:
                     raise Exception(
                         f"Recursive path expression is not supported yet. Please raise a ticket to notify us for future support! Found: {step.start}"
                     )
-                ast.assign(mem, start_var, expr.ExprConstant(step.start))
+                ast.assign(start_var, expr.ExprConstant(step.start))
+                start_var = start_var.get_var()
 
-                end_var = Var.create(
-                    mem,
-                    f"end__local_ast_{ast.id}",
+                end_var = DeferredVar(
+                    name=f"end",
                     key=("local-var", "end", f"attr={attr.id}", f"ast={ast.id}"),
                 )
                 if step.end is None:
                     if validate_path:
                         invok_len = DReprPredefinedFn.safe_len(
-                            self.import_manager,
+                            self.program,
                             expr.ExprVar(collection),
                             expr.ExprConstant(
                                 f"Encounter error while computing number of elements of attribute {attr.id} at "
@@ -287,7 +271,7 @@ class PathAccessor:
                         )
                     else:
                         invok_len = PredefinedFn.len(expr.ExprVar(collection))
-                    ast.assign(mem, end_var, invok_len)
+                    ast.assign(end_var, invok_len)
                 else:
                     if isinstance(step.end, path.Expr):
                         # I don't know about recursive path expression yet.
@@ -297,7 +281,7 @@ class PathAccessor:
 
                     if validate_path:
                         invok_len = DReprPredefinedFn.safe_len(
-                            self.import_manager,
+                            self.program,
                             expr.ExprVar(collection),
                             expr.ExprConstant(
                                 f"Encounter error while computing number of elements of attribute {attr.id} at "
@@ -317,7 +301,8 @@ class PathAccessor:
                             )
                         )
 
-                    ast.assign(mem, end_var, expr.ExprConstant(step.end))
+                    ast.assign(end_var, expr.ExprConstant(step.end))
+                end_var = end_var.get_var()
 
                 if isinstance(step.step, path.Expr):
                     # I don't know about recursive path expression yet.
@@ -325,27 +310,28 @@ class PathAccessor:
                         f"Recursive path expression is not supported yet. Please raise a ticket to notify us for future support! Found: {step.step}"
                     )
                 elif step.step != 1:
-                    step_var = Var.create(mem, f"step__local_ast_{ast.id}")
-                    ast.assign(mem, step_var, expr.ExprConstant(step.step))
+                    step_var = DeferredVar(f"step__local_ast_{ast.id}")
+                    ast.assign(step_var, expr.ExprConstant(step.step))
+                    step_var = step_var.get_var()
                     expr_step_var = expr.ExprVar(step_var)
                 else:
                     expr_step_var = None
 
                 ast = ast.for_loop(
-                    mem=mem,
                     item=itemindex,
                     iter=PredefinedFn.range(
                         expr.ExprVar(start_var), expr.ExprVar(end_var), expr_step_var
                     ),
                 )
+                itemindex = itemindex.get_var()
 
                 ast.assign(
-                    mem,
                     itemvalue,
                     PredefinedFn.item_getter(
                         expr.ExprVar(collection), expr.ExprVar(itemindex)
                     ),
                 )
+                itemvalue = itemvalue.get_var()
             return (
                 ast,
                 dim + 1,
@@ -356,25 +342,23 @@ class PathAccessor:
 
     def access_key(
         self,
-        mem: Memory,
         ast: AST,
         attr: Attr,
         collection: expr.Expr,
         key: expr.ExprConstant,
-        result: Var,
+        result: DeferredVar | Var,
         dim: int,
         handle_missing_key: Literal["safe", "no_missing_key"] | Callable[[AST], None],
     ):
         if handle_missing_key == "no_missing_key":
-            ast.assign(mem, result, PredefinedFn.item_getter(collection, key))
+            ast.assign(result, PredefinedFn.item_getter(collection, key))
             return ast
 
         if handle_missing_key == "safe":
             ast.assign(
-                mem,
                 result,
                 DReprPredefinedFn.safe_item_getter(
-                    self.import_manager,
+                    self.program,
                     collection,
                     key,
                     expr.ExprConstant(
@@ -390,5 +374,5 @@ class PathAccessor:
             handle_missing_key
         )
         inner_ast = ast.else_()
-        inner_ast.assign(mem, result, PredefinedFn.item_getter(collection, key))
+        inner_ast.assign(result, PredefinedFn.item_getter(collection, key))
         return inner_ast

@@ -1,9 +1,18 @@
 import copy
 import re
 
+from drepr.utils.misc import F
 from drepr.utils.validator import InputError, Validator
 
-from ..sm import ClassNode, DataNode, DataType, Edge, LiteralNode, SemanticModel
+from ..sm import (
+    ClassNode,
+    DataNode,
+    DataType,
+    Edge,
+    LiteralNode,
+    PredefinedDataType,
+    SemanticModel,
+)
 
 
 class SMParser:
@@ -33,7 +42,6 @@ class SMParser:
         "static_properties",
         "inverse_static_properties",
     }
-    DATA_TYPE_VALUES = {x.value for x in DataType}
 
     REG_SM_CLASS = re.compile(r"^((.+):\d+)$")
     REG_SM_DNODE = re.compile(r"^((?:(?!--).)+:\d+)--((?:(?!\^\^).)+)(?:\^\^(.+))?$")
@@ -55,6 +63,14 @@ class SMParser:
         for prefix, uri in prefixes.items():
             Validator.must_be_str(uri, f"{trace0}\nParse prefix {prefix}")
 
+        for prefix, uri in SemanticModel.get_default_prefixes().items():
+            if prefix not in prefixes:
+                prefixes[prefix] = uri
+            elif prefixes[prefix] != uri:
+                raise InputError(
+                    f"{trace0}\nERROR: Prefix `{prefix}` is conflicting with predefined value `{uri}`."
+                )
+
         for class_id, class_conf in sm.items():
             trace0 = f"Parsing class `{class_id}` of the semantic model"
             Validator.must_be_dict(class_conf, trace0)
@@ -63,7 +79,9 @@ class SMParser:
             )
 
             try:
-                class_name = cls.REG_SM_CLASS.match(class_id).group(2)
+                m = cls.REG_SM_CLASS.match(class_id)
+                assert m is not None
+                class_name = m.group(2)
             except Exception as e:
                 raise InputError(
                     f"{trace0}\nERROR: invalid class_id `{class_id}`. Expect to be <string>:<number>"
@@ -103,10 +121,10 @@ class SMParser:
                     )
 
                 if data_type is not None:
-                    Validator.must_in(
-                        data_type, cls.DATA_TYPE_VALUES, f"{trace1}\nParsing data type"
-                    )
-                    data_type = DataType(data_type)
+                    try:
+                        data_type = DataType(data_type, prefixes)
+                    except Exception as e:
+                        raise InputError(f"{trace1}\nERROR: {str(e)}")
 
                 node = DataNode(
                     node_id=f"dnode:{attr_id}", attr_id=attr_id, data_type=data_type
@@ -146,10 +164,10 @@ class SMParser:
                     )
 
                 if data_type is not None:
-                    Validator.must_in(
-                        data_type, cls.DATA_TYPE_VALUES, f"{trace1}\nParsing data type"
-                    )
-                    data_type = DataType(data_type)
+                    try:
+                        data_type = DataType(data_type, prefixes)
+                    except Exception as e:
+                        raise InputError(f"{trace1}\nERROR: {str(e)}")
 
                 # normalize value's type (e.g., ruamel.yaml read float into ScalarFloat)
                 if isinstance(value, str):
@@ -169,7 +187,7 @@ class SMParser:
                 trace1 = f"{trace0}\nParsing inverse static properties {i}: {prop}"
                 if len(prop) == 2:
                     predicate, value = prop
-                    data_type = DataType.xsd_anyURI
+                    data_type = PredefinedDataType.xsd_anyURI.value
                 else:
                     raise InputError(
                         f"{trace1}\nERROR: Expect value of the property to be an array of two "

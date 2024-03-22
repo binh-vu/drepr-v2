@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional, TypeAlias, Union
+from sys import prefix
+from typing import Any, NamedTuple, Optional, TypeAlias, Union
+
+from rdflib import OWL, RDF, RDFS, XSD
+
+from drepr.utils.namespace_mixin import NamespaceMixin
 
 from .attr import Attr, AttrId
 
@@ -11,16 +16,49 @@ NodeId: TypeAlias = str
 EdgeId: TypeAlias = int
 
 
-class DataType(Enum):
-    xsd_decimal = "xsd:decimal"
-    xsd_anyURI = "xsd:anyURI"
-    xsd_gYear = "xsd:gYear"
-    xsd_date = "xsd:date"
-    xsd_dateTime = "xsd:dateTime"
-    xsd_int = "xsd:int"
-    xsd_string = "xsd:string"
-    geo_wktLiteral = "geo:wktLiteral"
-    drepr_uri = "drepr:uri"
+class PredefinedNamespace(Enum):
+    drepr = "https://purl.org/drepr/1.0/"
+    rdf = str(RDF)
+    rdfs = str(RDFS)
+    owl = str(OWL)
+    xsd = str(XSD)
+
+
+class DataType(str):
+    prefixes: dict[str, str]
+
+    def __new__(cls, value, prefixes: dict[str, str]):
+        if value.find("://") == -1 and value.find(":") != -1:
+            # this is relative uri
+            prefix, ns = value.split(":", 1)
+            assert (
+                prefix in prefixes
+            ), f"The datatype `{value}` isn't grounded as it's a relative URI and the prefix is unknown {prefix}"
+            obj = str.__new__(cls, f"{prefixes[prefix]}{ns}")
+        else:
+            obj = str.__new__(cls, value)
+
+        obj.prefixes = prefixes
+        return obj
+
+    def get_rel_uri(self):
+        for prefix, uri in self.prefixes.items():
+            if self.startswith(uri):
+                return f"{prefix}:{self.replace(uri, '')}"
+        raise ValueError(
+            "Cannot create relative URI because there is no suitable prefix"
+        )
+
+
+class PredefinedDataType(Enum):
+    xsd_decimal = DataType("xsd:decimal", {"xsd": PredefinedNamespace.xsd.value})
+    xsd_anyURI = DataType("xsd:anyURI", {"xsd": PredefinedNamespace.xsd.value})
+    xsd_gYear = DataType("xsd:gYear", {"xsd": PredefinedNamespace.xsd.value})
+    xsd_date = DataType("xsd:date", {"xsd": PredefinedNamespace.xsd.value})
+    xsd_dateTime = DataType("xsd:dateTime", {"xsd": PredefinedNamespace.xsd.value})
+    xsd_int = DataType("xsd:int", {"xsd": PredefinedNamespace.xsd.value})
+    xsd_string = DataType("xsd:string", {"xsd": PredefinedNamespace.xsd.value})
+    drepr_uri = DataType(DREPR_URI, {"drepr": PredefinedNamespace.drepr.value})
 
 
 @dataclass
@@ -89,7 +127,7 @@ Node = Union[LiteralNode, DataNode, ClassNode]
 
 
 @dataclass
-class SemanticModel:
+class SemanticModel(NamespaceMixin):
     nodes: dict[NodeId, Node]
     edges: dict[EdgeId, Edge]
     prefixes: dict[str, str]
@@ -121,12 +159,7 @@ class SemanticModel:
 
     @staticmethod
     def get_default_prefixes() -> dict[str, str]:
-        return {
-            "drepr": "https://purl.org/drepr/1.0/",
-            "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
-            "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
-            "owl": "http://www.w3.org/2002/07/owl#",
-        }
+        return {ns.name: ns.value for ns in list(PredefinedNamespace)}
 
     @staticmethod
     def deserialize(raw: dict) -> SemanticModel:
@@ -138,13 +171,21 @@ class SemanticModel:
                 nodes[nid] = DataNode(
                     n["node_id"],
                     n["attr_id"],
-                    DataType(n["data_type"]) if n["data_type"] is not None else None,
+                    (
+                        DataType(n["data_type"], raw["prefixes"])
+                        if n["data_type"] is not None
+                        else None
+                    ),
                 )
             elif n["type"] == "literal_node":
                 nodes[nid] = LiteralNode(
                     n["node_id"],
                     n["value"],
-                    DataType(n["data_type"]) if n["data_type"] is not None else None,
+                    (
+                        DataType(n["data_type"], raw["prefixes"])
+                        if n["data_type"] is not None
+                        else None
+                    ),
                 )
             else:
                 raise NotImplementedError()
@@ -208,29 +249,6 @@ class SemanticModel:
         for e in self.edges.values():
             if e.target_id == node_id:
                 yield self.nodes[e.target_id]
-
-    def get_rel_iri(self, abs_iri: str) -> str:
-        """Convert an absolute IRI to a relative IRI."""
-        assert not self.is_rel_iri(abs_iri)
-        for prefix, uri in self.prefixes.items():
-            if abs_iri.startswith(uri):
-                return f"{prefix}:{abs_iri.replace(uri, '')}"
-        raise ValueError(
-            "Cannot create relative IRI because there is no suitable prefix"
-        )
-
-    def get_abs_iri(self, rel_iri: str) -> str:
-        """Convert a relative IRI to an absolute IRI."""
-        assert self.is_rel_iri(rel_iri)
-        prefix, val = rel_iri.split(":", 1)
-        if prefix not in self.prefixes:
-            raise ValueError(
-                f"Cannot create absolute IRI because the prefix {prefix} does not exist"
-            )
-        return f"{self.prefixes[prefix]}{val}"
-
-    def is_rel_iri(self, iri: str) -> bool:
-        return iri.find("://") == -1 and iri.find(":") != -1
 
     def get_n_class_nodes(self) -> int:
         return sum(1 for _ in self.iter_class_nodes())

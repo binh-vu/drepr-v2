@@ -1,0 +1,14 @@
+@prefix drepr: <https://purl.org/drepr/1.0/> .
+@prefix mndr: <https://minmod.isi.edu/resource/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+[] a mndr:MineralSite ;
+    mndr:name "NI 43-101 Technical Report and Preliminary Economic Assessment for the Thunder Bay North Project" ;
+    mndr:record_id 1 .
+
+[] a mndr:MineralSite ;
+    mndr:deposit_type_candidate [ a mndr:DepositTypeCandidate ;
+            mndr:normalized_uri "https://minmod.isi.edu/resource/Q484"^^drepr:uri ] ;
+    mndr:name "NI 43-101 Technical Report and Preliminary Economic Assessment for the Thunder Bay North Project" ;
+    mndr:record_id 1 .
+
