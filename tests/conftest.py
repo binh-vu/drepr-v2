@@ -11,6 +11,7 @@ class DatasetExample:
     name: str
     model: Path
     resources: dict[str, Path]
+    output: Path
     cwd: Path
 
 
@@ -26,9 +27,10 @@ def example_datasets() -> dict[str, DatasetExample]:
                 for file in dir.iterdir()
                 if file.is_file()
                 and not file.name.startswith(".")
-                and file.name != "model.yml"
+                and file.name not in {"model.yml", "output.ttl"}
             },
             cwd=dir,
+            output=dir / "output.ttl",
         )
 
     def find_examples(basedir: Path, current_dir: Path, out: dict[str, DatasetExample]):

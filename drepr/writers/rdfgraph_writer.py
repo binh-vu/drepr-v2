@@ -1,13 +1,9 @@
 from __future__ import annotations
 
-from collections import defaultdict
-from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from rdflib import RDF, BNode, Graph, Literal, Namespace, URIRef
 
-from drepr.models.drepr import DRepr
-from drepr.models.sm import NodeId
 from drepr.writers.base import StreamClassWriter
 
 SubjVal = str | tuple | int | bool

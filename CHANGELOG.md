@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Added comparing TTL output when verifying the correctness of the generated program
+
 ## [1.1.1] - 2024-03-21
 
 ### Fixed
