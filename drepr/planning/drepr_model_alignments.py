@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import re
+from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Generic, Optional, TypeVar
+from typing import Optional
 
-from graph.retworkx import BaseEdge, BaseNode, RetworkXStrDiGraph
+from graph.retworkx import RetworkXStrDiGraph
 
 from drepr.models.align import AlignedStep, AutoAlignment
 from drepr.models.attr import Attr
@@ -72,103 +72,41 @@ class DReprModelAlignments:
         return self.aligns[(source, target)]
 
     def inference(self):
-        mg = RetworkXStrDiGraph(multigraph=False)
-        for a in self.desc.attrs:
-            mg.add_node(BaseNode(a.id))
-
+        ig: dict[str, dict[str, int]] = {
+            attr.id: {attr.id: 0} for attr in self.desc.attrs
+        }
         for (source, target), aligns in self.aligns.items():
             assert len(aligns) <= 1, aligns
             if len(aligns) == 0:
                 continue
-
             if isinstance(aligns[0], (RangeAlignment, ValueAlignment)):
-                mg.add_edge(BaseEdge(id=-1, source=source, target=target, key=""))
-                mg.add_edge(BaseEdge(id=-1, source=target, target=source, key=""))
+                ig[source][target] = sum(
+                    self.score_alignment(align) for align in aligns
+                )
             elif not isinstance(aligns[0], IdenticalAlign):
                 print(aligns)
                 raise Exception("Unreachable")
 
+        ig_2nd = ig
         while True:
-            # loop until no new edge has been found
-            n_new_edges = 0
+            ig_3rd = defaultdict(dict)
+            for u0 in ig_2nd:
+                # for updated neighbors of u0
+                for u1 in ig_2nd[u0]:
+                    for u2 in ig[u1]:
+                        afuncs = self.infer_func(u0, u1, u2)
+                        if afuncs is not None:
+                            score = sum(self.score_alignment(align) for align in afuncs)
+                            if u2 not in ig[u0] or ig[u0][u2] > score:
+                                # we found a better alignment
+                                self.aligns[u0, u2] = afuncs
+                                ig_3rd[u0][u2] = score
 
-            # infer more alignment functions, i.e., edges between nodes, using DFS
-            for u0 in self.desc.attrs:
-                new_outgoing_edges = []
-                new_incoming_edges = []
-
-                # TODO: fix me. this is a temporary work around to avoid infinite loop
-                # checkout the original code in Rust. Before, we allow to revisit the same node
-                # infinite times, but now we only allow to revisit the node maximum K x mg.nodes times.
-                dfs = CustomedDfs.from_graph(mg, u0.id)
-                revisit: set[str] = set()
-
-                # to break the infinite loop, we have to limit the number of times we revisit the same node
-                max_revisit = mg.num_nodes() * 10
-                revisit_count: dict[str, int] = {}
-
-                if dfs.next(mg, revisit) is not None:
-                    # call next first to skip the u0
-                    while True:
-                        # recording the length of the current stack
-                        # so that we know if we need to stop from exploring further from the next node
-                        # we can pop all of its children
-                        stack_len = len(dfs.stack)
-                        tmp_u1u2 = dfs.next(mg, revisit)
-                        if tmp_u1u2 is None:
-                            break
-                        (u1, u2) = tmp_u1u2
-
-                        if u2 in revisit:
-                            # to break the infinite loop, we have to limit the number of times we revisit the same node
-                            if revisit_count[u2] > 0:
-                                revisit_count[u2] -= 1
-                                if revisit_count[u2] <= 0:
-                                    revisit.remove(u2)
-
-                        if mg.has_edge_between_nodes(
-                            u0.id, u1, ""
-                        ) and not mg.has_edge_between_nodes(u0.id, u2, ""):
-                            # try to infer alignment function between u0 and u2
-                            inferres = self.infer_func(u0.id, u1, u2)
-                            if inferres is None:
-                                # haven't found any, hence we have to stop from exploring u2
-                                # plus 1 because we take into account the u2 node, which was popped
-                                for _ in range(len(dfs.stack) + 1 - stack_len):
-                                    # remove all children of u2
-                                    dfs.stack.pop()
-
-                                # mark this u2 as re-visited because it may be discovered from other nodes
-                                # we did have infinite recursive loop here so we need to introduce revisit_count
-                                if u2 not in revisit_count:
-                                    revisit_count[u2] = max_revisit
-                                    revisit.add(u2)
-                                elif revisit_count[u2] > 0:
-                                    revisit_count[u2] -= 1
-                                    if revisit_count[u2] <= 0:
-                                        revisit.remove(u2)
-                                else:
-                                    assert u2 not in revisit
-                                continue
-                            else:
-                                afuncs = inferres
-                                new_outgoing_edges.append(u2)
-                                self.aligns[u0.id, u2] = afuncs
-
-                            afuncs = self.infer_func(u2, u1, u0.id)
-                            if afuncs is not None:
-                                new_incoming_edges.append(u2)
-                                self.aligns[u2, u0.id] = afuncs
-
-                n_new_edges += len(new_incoming_edges) + len(new_outgoing_edges)
-                for ui in new_outgoing_edges:
-                    mg.add_edge(BaseEdge(id=-1, source=u0.id, target=ui, key=""))
-
-                for ui in new_incoming_edges:
-                    mg.add_edge(BaseEdge(id=-1, source=ui, target=u0.id, key=""))
-
-            if n_new_edges == 0:
-                # no more new edges
+            for u0 in ig_3rd:
+                for u2, score in ig_3rd[u0].items():
+                    ig[u0][u2] = score
+            ig_2nd = ig_3rd
+            if len(ig_2nd) == 0:
                 break
 
     def infer_subject(self, attrs: list[AttrId]) -> list[AttrId]:
@@ -402,6 +340,27 @@ class DReprModelAlignments:
                 )
 
         return None
+
+    def score_alignment(self, align: Alignment) -> int:
+        """Score an alignment function so we can justify if an alignment is new/better or not. Lower score is better."""
+        if isinstance(align, RangeAlignment):
+            card = align.compute_cardinality(self.desc)
+            if card == Cardinality.OneToOne:
+                return 1
+            elif card == Cardinality.OneToMany or card == Cardinality.ManyToOne:
+                return 2
+            else:
+                return 3
+        if isinstance(align, ValueAlignment):
+            card = align.compute_cardinality(self.desc)
+            if card == Cardinality.OneToOne:
+                return 4
+            elif card == Cardinality.OneToMany or card == Cardinality.ManyToOne:
+                return 5
+            else:
+                return 6
+        assert isinstance(align, IdenticalAlign)
+        return 0
 
 
 @dataclass

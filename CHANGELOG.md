@@ -1,10 +1,14 @@
 # Changelog
 
-## [Unreleased]
+## [1.1.2] - 2024-03-22
 
 ### Added
 
 - Added comparing TTL output when verifying the correctness of the generated program
+
+### Changed
+
+- Improve the performance of alignment inference by using a more efficient algorithm
 
 ## [1.1.1] - 2024-03-21
 
