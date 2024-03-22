@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.1.1] - 2024-03-21
+
+### Fixed
+
+- Fixed concurrency issue when executing `python -m drepr` in parallel (writing to the same file in `/tmp/drepr`) directory
+
 ## [1.1.0] - 2024-03-21
 
 ### Added

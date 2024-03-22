@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from threading import local
 from typing import Annotated, Optional
+from uuid import uuid4
 
 import typer
 
@@ -91,13 +92,15 @@ def main(
         output = MemoryOutput(format)
 
     prog = gen_program(parsed_repr, exec_plan, output, debuginfo).to_python()
+    cleanup = progfile is None
     if progfile is not None:
         with open(progfile, "w") as f:
             f.write(prog)
     else:
         tmpdir.mkdir(parents=True, exist_ok=True)
-        (tmpdir / "main.py").write_text(prog)
-        progfile = tmpdir / "main.py"
+        unique_id = str(uuid4()).replace("-", "_")
+        progfile = tmpdir / f"main_{unique_id}.py"
+        progfile.write_text(prog)
 
     spec = importlib.util.spec_from_file_location("drepr_prog", progfile)
     assert spec is not None and spec.loader is not None
@@ -107,6 +110,9 @@ def main(
         module.main(*[parsed_resources[r.id] for r in parsed_repr.resources], outfile)
     else:
         print(module.main(*[parsed_resources[r.id] for r in parsed_repr.resources]))
+
+    if cleanup:
+        progfile.unlink()
 
 
 if __name__ == "__main__":
