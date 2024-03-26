@@ -4,6 +4,7 @@ from typing import Any, Optional
 
 from rdflib import RDF, BNode, Graph, Literal, Namespace, URIRef
 
+from drepr.models.sm import DREPR_URI
 from drepr.writers.base import StreamClassWriter
 
 SubjVal = str | tuple | int | bool
@@ -62,7 +63,7 @@ class RDFGraphWriter(StreamClassWriter):
         return not self.has_subj_data
 
     def write_data_property(self, predicate_id: str, value: Any, dtype: Optional[str]):
-        if dtype == "drepr:uri":
+        if dtype == DREPR_URI:
             value = URIRef(value)
         else:
             value = Literal(value, datatype=dtype)

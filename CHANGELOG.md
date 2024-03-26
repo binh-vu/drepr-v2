@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.1.3] - 2024-03-26
+
+### Fixed
+
+- Fix `drepr:uri` does not generate the URI.
+
 ## [1.1.2] - 2024-03-22
 
 ### Added
