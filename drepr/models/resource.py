@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
@@ -42,6 +44,22 @@ class Resource:
         else:
             prop = None
         return Resource(raw["id"], ResourceType(raw["type"]), prop)
+
+    def is_preprocessing_output(self):
+        """Return true if this resource holds output of preprocessing functions"""
+        return (
+            self.id.startswith(f"__preproc__") and self.type == ResourceType.Container
+        )
+
+    @staticmethod
+    def create_preprocessing_output(attr_id: str) -> Resource:
+        return Resource(
+            Resource.get_preprocessing_output_id(attr_id), ResourceType.Container
+        )
+
+    @staticmethod
+    def get_preprocessing_output_id(attr_id: str) -> str:
+        return f"__preproc__{attr_id}"
 
 
 class ResourceData(ABC):

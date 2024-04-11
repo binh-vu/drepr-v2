@@ -50,8 +50,12 @@ def gen_program(
     writer = Writer(desc, output.format, program)
 
     func_args = [
-        DeferredVar(name="resource", key=VarSpace.resource(res.id))
+        DeferredVar(
+            name="resource" if len(desc.resources) == 1 else f"resource_{res.id}",
+            key=VarSpace.resource(res.id),
+        )
         for res in desc.resources
+        if not res.is_preprocessing_output()
     ]
     if isinstance(output, FileOutput):
         output_file = DeferredVar(name="output_file", key=VarSpace.output_file())
@@ -63,8 +67,14 @@ def gen_program(
     main_fn = program.root.func("main", func_args)
 
     for resource in desc.resources:
+        if resource.is_preprocessing_output():
+            continue
         var = DeferredVar(
-            name="resource_data",
+            name=(
+                "resource_data"
+                if len(desc.resources) == 1
+                else f"resource_data_{resource.id}"
+            ),
             key=VarSpace.resource_data(resource.id),
         )
         main_fn.assign(
@@ -87,7 +97,7 @@ def gen_program(
                     name=f"{attr.id}_missing_values",
                     key=VarSpace.attr_missing_values(attr.id),
                 ),
-                expr.ExprConstant(attr.missing_values),
+                expr.ExprConstant(set(attr.missing_values)),
             )
 
     # create transformation

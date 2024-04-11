@@ -3,13 +3,19 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
+import drepr.models.path as dpath
 from codegen.models import AST, Program, Var, expr
 from codegen.models.var import DeferredVar
-
-from drepr.models.attr import Attr, Sorted, ValueType
-from drepr.models.drepr import DRepr
-from drepr.models.path import IndexExpr, RangeExpr
-from drepr.models.preprocessing import Context, PMap, PreprocessingType
+from drepr.models.prelude import (
+    Attr,
+    Context,
+    DRepr,
+    PMap,
+    PreprocessingType,
+    Resource,
+    Sorted,
+    ValueType,
+)
 from drepr.program_generation.alignment_fn import PathAccessor
 from drepr.program_generation.predefined_fn import DReprPredefinedFn
 from drepr.program_generation.program_space import VarSpace
@@ -64,31 +70,97 @@ class GenPreprocessing:
             self._init_user_defined_fn(prepro_id, value.code)
             self._generate_preprocessing_pmap(prepro_id, prepro_fn, value)
 
-            # call preprocessing fn in the main program
-            self.call_preproc_ast.expr(
-                expr.ExprFuncCall(
-                    expr.ExprIdent(genfn_name),
-                    [
-                        expr.ExprVar(
-                            self.program.get_var(
-                                key=VarSpace.resource_data(
-                                    preprocessing.value.resource_id
-                                ),
-                                at=self.call_preproc_ast.next_child_id(),
-                            )
-                        ),
-                    ],
-                )
+            prepro_invoke_expr = expr.ExprFuncCall(
+                expr.ExprIdent(genfn_name),
+                [
+                    expr.ExprVar(
+                        self.program.get_var(
+                            key=VarSpace.resource_data(preprocessing.value.resource_id),
+                            at=self.call_preproc_ast.next_child_id(),
+                        )
+                    ),
+                ],
             )
+            # call preprocessing fn in the main program and assign if needed
+            if value.output is not None:
+                prepro_resource_id = Resource.get_preprocessing_output_id(value.output)
+                self.call_preproc_ast.assign(
+                    DeferredVar(
+                        name=f"resource_data_{prepro_resource_id}",
+                        key=VarSpace.resource_data(prepro_resource_id),
+                    ),
+                    prepro_invoke_expr,
+                )
+            else:
+                self.call_preproc_ast.expr(prepro_invoke_expr)
             return None
 
         raise NotImplementedError(preprocessing.type)
 
     def _generate_preprocessing_pmap(self, prepro_id: int, prepro_fn: AST, value: PMap):
-        if not value.change_structure and value.output is None:
-            # if we don't change the structure and don't have output, we directly mutate the resource data
-            # the idea is to loop through the path without the last index, get the value, apply the function, and set the value
-            # of the last index to the new value.
+        if not value.change_structure:
+            if value.output is not None:
+                prepro_resource_id = Resource.get_preprocessing_output_id(value.output)
+                # create a variable to store the preprocess results
+                output_attr_id = value.output
+                output_attr = DeferredVar(
+                    name=output_attr_id, key=VarSpace.preprocessing_output(prepro_id)
+                )
+
+                # we use a special class called AttributeData that can store data as if it is in the resource data (same index, etc -- but the
+                # real location in memory is different)
+                self.program.import_("drepr.utils.attr_data.AttributeData", True)
+                prepro_fn.assign(
+                    output_attr,
+                    expr.ExprFuncCall(
+                        expr.ExprIdent("AttributeData.from_raw_path"),
+                        [
+                            expr.ExprConstant(value.path.to_lang_format()),
+                        ],
+                    ),
+                )
+
+                def on_step(
+                    ast: AST,
+                    dim: int,
+                    collection: expr.Expr,
+                    key: expr.Expr,
+                    result: DeferredVar | Var,
+                ):
+                    # everytime we step into a new dimension, we step into the output variable as well.
+                    if dim == 0:
+                        # this is better than `output_attr.get_var()` as we can ensure the scope is correct
+                        output_collection = expr.ExprVar(
+                            self.program.get_var(
+                                key=output_attr.key, at=ast.next_child_id()
+                            )
+                        )
+                    else:
+                        output_collection = expr.ExprVar(
+                            self.program.get_var(
+                                key=VarSpace.attr_value_dim(
+                                    prepro_resource_id, output_attr_id, dim - 1
+                                ),
+                                at=ast.next_child_id(),
+                            )
+                        )
+
+                    itemvalue = DeferredVar(
+                        name=f"{output_attr_id}_value_{dim}",
+                        key=VarSpace.attr_value_dim(
+                            prepro_resource_id, output_attr_id, dim
+                        ),
+                    )
+                    ast.assign(
+                        itemvalue, DReprPredefinedFn.item_getter(output_collection, key)
+                    )
+
+                on_step_callback = on_step
+            else:
+                on_step_callback = None
+
+            # the idea is to loop through the path without the last index, get the value, apply the function, and set
+            # the value of the last index to the new value
             pseudo_attr = Attr(
                 id=f"preproc_{prepro_id}_path",
                 resource_id=value.resource_id,
@@ -99,8 +171,7 @@ class GenPreprocessing:
                 value_type=ValueType.UnspecifiedSingle,
             )
             ast = PathAccessor(self.program).iterate_elements(
-                ast=prepro_fn,
-                attr=pseudo_attr,
+                ast=prepro_fn, attr=pseudo_attr, on_step_callback=on_step_callback
             )
 
             # get item value & item context
@@ -112,22 +183,90 @@ class GenPreprocessing:
                 ),
                 at=ast.next_child_id(),
             )
-            if len(pseudo_attr.path.steps) > 1:
-                parent_item_value = self.program.get_var(
-                    key=VarSpace.attr_value_dim(
-                        pseudo_attr.resource_id,
-                        pseudo_attr.id,
-                        len(pseudo_attr.path.steps) - 2,
-                    ),
-                    at=ast.next_child_id(),
+            if self.user_defined_fn[prepro_id].use_context:
+                context_index: list[expr.Expr] = []
+                for dim in range(len(pseudo_attr.path.steps)):
+                    step = pseudo_attr.path.steps[dim]
+                    if isinstance(step, dpath.IndexExpr):
+                        if isinstance(step.val, dpath.Expr):
+                            # I don't know about recursive path expression yet -- what usecase and how to use them -- so I can't implement.
+                            raise Exception(
+                                f"Recursive path expression is not supported yet. Please raise a ticket to notify us for future support! Found: {step.vals}"
+                            )
+                        context_index.append(expr.ExprConstant(step.val))
+                    else:
+                        context_index.append(
+                            expr.ExprVar(
+                                self.program.get_var(
+                                    key=VarSpace.attr_index_dim(
+                                        pseudo_attr.resource_id, pseudo_attr.id, dim
+                                    ),
+                                    at=ast.next_child_id(),
+                                )
+                            )
+                        )
+
+                self.program.import_(
+                    "drepr.program_generation.preprocessing.ContextImpl", True
+                )
+                item_context = expr.ExprFuncCall(
+                    expr.ExprIdent("ContextImpl"),
+                    [
+                        expr.ExprVar(
+                            self.program.get_var(
+                                key=VarSpace.resource_data(value.resource_id),
+                                at=prepro_fn.next_child_id(),
+                            )
+                        ),
+                        DReprPredefinedFn.tuple(context_index),
+                    ],
                 )
             else:
-                parent_item_value = self.program.get_var(
-                    key=VarSpace.resource_data(pseudo_attr.resource_id),
-                    at=ast.next_child_id(),
-                )
+                item_context = None
 
-            if isinstance(pseudo_attr.path.steps[-1], IndexExpr):
+            # then we call the user defined fn to get the new item value
+            new_item_value = self._call_user_defined_fn(
+                prepro_id,
+                ast,
+                expr.ExprVar(item_value),
+                item_context,
+            )
+
+            # get the parent item value & index to assign the new value
+            # if output new data, we need to retrieve the parent item value from correct location
+            if value.output is not None:
+                if len(pseudo_attr.path.steps) > 1:
+                    parent_item_value = self.program.get_var(
+                        key=VarSpace.attr_value_dim(
+                            prepro_resource_id,
+                            output_attr_id,
+                            len(pseudo_attr.path.steps) - 2,
+                        ),
+                        at=ast.next_child_id(),
+                    )
+                else:
+                    # this is better than `output_attr.get_var()` as we can ensure the scope is correct
+                    parent_item_value = self.program.get_var(
+                        key=output_attr.key,
+                        at=ast.next_child_id(),
+                    )
+            else:
+                if len(pseudo_attr.path.steps) > 1:
+                    parent_item_value = self.program.get_var(
+                        key=VarSpace.attr_value_dim(
+                            pseudo_attr.resource_id,
+                            pseudo_attr.id,
+                            len(pseudo_attr.path.steps) - 2,
+                        ),
+                        at=ast.next_child_id(),
+                    )
+                else:
+                    parent_item_value = self.program.get_var(
+                        key=VarSpace.resource_data(pseudo_attr.resource_id),
+                        at=ast.next_child_id(),
+                    )
+
+            if isinstance(pseudo_attr.path.steps[-1], dpath.IndexExpr):
                 parent_item_index = expr.ExprConstant(pseudo_attr.path.steps[-1].val)
             else:
                 parent_item_index = expr.ExprVar(
@@ -141,41 +280,6 @@ class GenPreprocessing:
                     )
                 )
 
-            if self.user_defined_fn[prepro_id].use_context:
-                # TODO: implement this
-                # item_context = expr.ExprFuncCall(
-                #     expr.ExprIdent("ContextImpl"),
-                #     [
-                #         expr.ExprVar(
-                #             Var.deref(
-                #                 self.memory,
-                #                 key=VarSpace.resource_data(pseudo_attr.resource_id),
-                #             )
-                #         ),
-                #         expr.ExprVar(
-                #             Var.deref(
-                #                 self.memory,
-                #                 key=VarSpace.attr_index_dim(
-                #                     pseudo_attr.resource_id,
-                #                     pseudo_attr.id,
-                #                     len(pseudo_attr.path.steps) - 1,
-                #                 ),
-                #             )
-                #         ),
-                #     ],
-                # )
-                raise NotImplementedError()
-            else:
-                item_context = None
-
-            # then we call the user defined fn to get the new item value
-            new_item_value = self._call_user_defined_fn(
-                prepro_id,
-                ast,
-                expr.ExprVar(item_value),
-                item_context,
-            )
-
             # then, we set the new item value to the parent item value
             ast.expr(
                 DReprPredefinedFn.item_setter(
@@ -184,8 +288,18 @@ class GenPreprocessing:
                     new_item_value,
                 )
             )
+
+            if value.output is not None:
+                prepro_fn.return_(
+                    expr.ExprVar(
+                        self.program.get_var(
+                            key=output_attr.key,
+                            at=prepro_fn.next_child_id(),
+                        )
+                    )
+                )
         else:
-            # we have to create a temporary variable to store preprocessed results
+            # haven't considered the case of changing structure yet
             raise NotImplementedError()
 
     def _init_user_defined_fn(self, prepro_id: PreprocessingId, code: str):
@@ -297,8 +411,12 @@ class ContextImpl(Context):
     def get_index(self) -> tuple:
         return self.index
 
-    def get_value(self, resource_data, index: tuple):
+    def get_value(self, index: tuple):
         ptr = self.resource_data
         for i in index:
             ptr = ptr[i]
         return ptr
+
+
+class GenerateDataStorage:
+    pass

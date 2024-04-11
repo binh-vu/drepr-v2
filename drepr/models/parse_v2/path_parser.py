@@ -1,7 +1,7 @@
 import re
 from abc import ABC, abstractmethod
 from copy import copy
-from typing import List, Union
+from typing import List, Optional, Union
 
 from drepr.models.parse_v1.path_parser import PathParser
 from drepr.utils.validator import InputError
@@ -29,7 +29,7 @@ class PathParserV2(PathParser):
     REG_JPATH_DOT = re.compile(r"\.((?:(?!\.|\[).)+)")
 
     def parse(
-        self, resource: Resource, path: Union[str, list], parse_trace: str
+        self, resource: Optional[Resource], path: Union[str, list], parse_trace: str
     ) -> Path:
         if isinstance(path, str):
             return self.parse_jsonpath(resource, path, parse_trace)
@@ -59,7 +59,9 @@ class PathParserV2(PathParser):
             return s[1:].isdigit()
         return s.isdigit()
 
-    def parse_jsonpath(self, resource: Resource, jpath: str, parse_trace: str) -> Path:
+    def parse_jsonpath(
+        self, resource: Optional[Resource], jpath: str, parse_trace: str
+    ) -> Path:
         if not jpath.startswith("$"):
             raise InputError(
                 f"{parse_trace}\nERROR: invalid json path. The path must start with `$`. "
@@ -71,51 +73,52 @@ class PathParserV2(PathParser):
         parsing_pos = 1
 
         # pre-processing the spreadsheet resource to allow letter column
-        if resource.type == ResourceType.Spreadsheet:
-            last_step_index = max(jpath.rfind("["), jpath.rfind("."))
-            if jpath[last_step_index] == "[":
-                last_step = jpath[last_step_index + 1 : -1]
-                result = last_step.split(":")
-                if len(result) == 1:
-                    index = result[0]
-                    if not self.isdigit(index):
-                        new_last_step = self.letter2index(index)
+        if resource is not None:
+            if resource.type == ResourceType.Spreadsheet:
+                last_step_index = max(jpath.rfind("["), jpath.rfind("."))
+                if jpath[last_step_index] == "[":
+                    last_step = jpath[last_step_index + 1 : -1]
+                    result = last_step.split(":")
+                    if len(result) == 1:
+                        index = result[0]
+                        if not self.isdigit(index):
+                            new_last_step = self.letter2index(index)
+                        else:
+                            new_last_step = index
                     else:
-                        new_last_step = index
-                else:
-                    if len(result) == 3:
-                        start, end, step = result
-                    elif len(result) == 2:
-                        start, end = result
-                        step = 1
-                    else:
-                        raise InputError(f"{parse_trace}\nERROR: invalid path")
+                        if len(result) == 3:
+                            start, end, step = result
+                        elif len(result) == 2:
+                            start, end = result
+                            step = 1
+                        else:
+                            raise InputError(f"{parse_trace}\nERROR: invalid path")
 
-                    if (len(start) > 0 and not self.isdigit(start)) or (
-                        len(end) > 0 and not self.isdigit(end)
-                    ):
-                        # they use letter system, otherwise, do nothing
-                        if (len(start) > 0 and self.isdigit(start)) or (
-                            len(end) > 0 and self.isdigit(end)
+                        if (len(start) > 0 and not self.isdigit(start)) or (
+                            len(end) > 0 and not self.isdigit(end)
                         ):
-                            raise InputError(
-                                f"{parse_trace}\nERROR: Cannot mixed between number and letter index"
-                            )
-                        start = self.letter2index(start)
-                        if len(end) > 0:
-                            end = self.letter2index(end)
-                        new_last_step = f"{start}:{end}:{step}"
-                    else:
-                        new_last_step = f"{start}:{end}:{step}"
+                            # they use letter system, otherwise, do nothing
+                            if (len(start) > 0 and self.isdigit(start)) or (
+                                len(end) > 0 and self.isdigit(end)
+                            ):
+                                raise InputError(
+                                    f"{parse_trace}\nERROR: Cannot mixed between number and letter index"
+                                )
+                            start = self.letter2index(start)
+                            if len(end) > 0:
+                                end = self.letter2index(end)
+                            new_last_step = f"{start}:{end}:{step}"
+                        else:
+                            new_last_step = f"{start}:{end}:{step}"
 
-                jpath = jpath[:last_step_index] + f"[{new_last_step}]"
-            elif jpath[last_step_index] == ".":
-                last_step = jpath[last_step_index + 1 :]
-                if not self.isdigit(last_step):
-                    new_last_step = self.letter2index(last_step)
-                else:
-                    new_last_step = last_step
-                jpath = jpath[:last_step_index] + f".{new_last_step}"
+                    jpath = jpath[:last_step_index] + f"[{new_last_step}]"
+                elif jpath[last_step_index] == ".":
+                    last_step = jpath[last_step_index + 1 :]
+                    if not self.isdigit(last_step):
+                        new_last_step = self.letter2index(last_step)
+                    else:
+                        new_last_step = last_step
+                    jpath = jpath[:last_step_index] + f".{new_last_step}"
 
         while len(jpath) > 0:
             if jpath.startswith("["):
@@ -170,39 +173,40 @@ class PathParserV2(PathParser):
         return Path(steps)
 
     def parse_custom_path(
-        self, resource: Resource, path: List[str], parse_trace: str
+        self, resource: Optional[Resource], path: List[str], parse_trace: str
     ) -> Path:
-        if resource.type == ResourceType.Spreadsheet:
-            path = copy(path)
-            last_step = path[-1]
-            if isinstance(last_step, str):
-                if last_step.find("..") != -1:
-                    tmp = last_step.split(":")
-                    start, end = tmp[0].split("..")
-                    if len(tmp) == 2:
-                        step = f":{tmp[1]}"
-                    else:
-                        step = ""
+        if resource is not None:
+            if resource.type == ResourceType.Spreadsheet:
+                path = copy(path)
+                last_step = path[-1]
+                if isinstance(last_step, str):
+                    if last_step.find("..") != -1:
+                        tmp = last_step.split(":")
+                        start, end = tmp[0].split("..")
+                        if len(tmp) == 2:
+                            step = f":{tmp[1]}"
+                        else:
+                            step = ""
 
-                    if (len(start) > 0 and not self.isdigit(start)) or (
-                        len(end) > 0 and not self.isdigit(end)
-                    ):
-                        # they use letter system, otherwise, do nothing
-                        if (len(start) > 0 and self.isdigit(start)) or (
-                            len(end) > 0 and self.isdigit(end)
+                        if (len(start) > 0 and not self.isdigit(start)) or (
+                            len(end) > 0 and not self.isdigit(end)
                         ):
-                            raise InputError(
-                                f"{parse_trace}\nERROR: Cannot mixed between number and letter index"
-                            )
-                        start = self.letter2index(start)
-                        if len(end) > 0:
-                            end = self.letter2index(end)
-                        new_last_step = f"{start}..{end}{step}"
-                    else:
-                        new_last_step = f"{start}..{end}{step}"
-                    path[-1] = new_last_step
-                elif not self.isdigit(last_step):
-                    path[-1] = self.letter2index(last_step)
+                            # they use letter system, otherwise, do nothing
+                            if (len(start) > 0 and self.isdigit(start)) or (
+                                len(end) > 0 and self.isdigit(end)
+                            ):
+                                raise InputError(
+                                    f"{parse_trace}\nERROR: Cannot mixed between number and letter index"
+                                )
+                            start = self.letter2index(start)
+                            if len(end) > 0:
+                                end = self.letter2index(end)
+                            new_last_step = f"{start}..{end}{step}"
+                        else:
+                            new_last_step = f"{start}..{end}{step}"
+                        path[-1] = new_last_step
+                    elif not self.isdigit(last_step):
+                        path[-1] = self.letter2index(last_step)
 
         steps = []
         for i, step in enumerate(path):

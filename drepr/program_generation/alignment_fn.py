@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Literal, Optional
+from typing import Any, Callable, Literal, Optional, Protocol
 
 from codegen.models import AST, DeferredVar, PredefinedFn, Program, Var, expr, stmt
 
@@ -82,6 +82,7 @@ class PathAccessor:
         validate_path: bool = False,
         on_missing_key: Optional[Callable[[AST], Any]] = None,
         iter_final_list: bool = False,
+        on_step_callback: Optional[OnStepCallback] = None,
     ):
         ast = ast.update_recursively(
             fn=lambda ast, dim: self.next_dimensions(
@@ -93,6 +94,7 @@ class PathAccessor:
                 validate_path,
                 on_missing_key,
                 iter_final_list,
+                on_step_callback,
             ),
             context=0,
         )
@@ -108,6 +110,7 @@ class PathAccessor:
         validate_path: bool,
         on_missing_key: Optional[Callable[[AST], Any]] = None,
         iter_final_list: bool = False,
+        on_step_callback: Optional[OnStepCallback] = None,
     ):
         """Generate code to access elements of dimensions of attr started at dim.
         Return the next ast, remaining dimension index, and whether it has stopped.
@@ -123,6 +126,7 @@ class PathAccessor:
                 is annotated with `missing_path = True`, then setting this does not have any effect.
             on_missing_key: a function that will be called when the key does not exist. If it is None, then we will raise an exception.
             iter_final_list: if value type of attribute is a list, and this flag is true, we will iterate over the list to yield each item
+            on_step_callback: a function that can be called to generate code at each time we step into a new dimension (except dimension 0, which is the resource data)
         """
         n_dim = len(attr.path.steps)
         if attr.value_type.is_list() and iter_final_list:
@@ -149,16 +153,17 @@ class PathAccessor:
 
         # index expr does not need nested ast.
         while isinstance(step, path.IndexExpr) and dim < len(attr.path.steps):
+            if isinstance(step.val, path.Expr):
+                # I don't know about recursive path expression yet -- what usecase and how to use them -- so I can't implement.
+                raise Exception(
+                    f"Recursive path expression is not supported yet. Please raise a ticket to notify us for future support! Found: {step.val}"
+                )
+
             # we do not need nested loop for index expression as we can just directly access the value
             c1 = DeferredVar(
                 name=f"{attr.id}_value_{dim}",
                 key=VarSpace.attr_value_dim(attr.resource_id, attr.id, dim),
             )
-            if isinstance(step.val, path.Expr):
-                # I don't know about recursive path expression yet.
-                raise Exception(
-                    f"Recursive path expression is not supported yet. Please raise a ticket to notify us for future support! Found: {step.val}"
-                )
 
             if validate_path and not attr.path.is_step_optional(dim):
                 handle_missing_key = "safe"
@@ -176,6 +181,7 @@ class PathAccessor:
                 c1,
                 dim,
                 handle_missing_key,
+                on_step_callback,
             )
 
             collection = c1.get_var()
@@ -240,6 +246,14 @@ class PathAccessor:
 
                 ast.assign(itemvalue, invok_item_getter)
                 itemvalue = itemvalue.get_var()
+                if on_step_callback is not None:
+                    on_step_callback(
+                        ast,
+                        dim,
+                        expr.ExprVar(collection),
+                        expr.ExprVar(itemindex),
+                        itemvalue,
+                    )
             else:
                 # the dimension is not bound, we are going to generate multiple values
                 # using a for loop
@@ -332,6 +346,14 @@ class PathAccessor:
                     ),
                 )
                 itemvalue = itemvalue.get_var()
+                if on_step_callback is not None:
+                    on_step_callback(
+                        ast,
+                        dim,
+                        expr.ExprVar(collection),
+                        expr.ExprVar(itemindex),
+                        itemvalue,
+                    )
             return (
                 ast,
                 dim + 1,
@@ -349,9 +371,12 @@ class PathAccessor:
         result: DeferredVar | Var,
         dim: int,
         handle_missing_key: Literal["safe", "no_missing_key"] | Callable[[AST], None],
+        on_step_callback: Optional[OnStepCallback] = None,
     ):
         if handle_missing_key == "no_missing_key":
             ast.assign(result, PredefinedFn.item_getter(collection, key))
+            if on_step_callback is not None:
+                on_step_callback(ast, dim, collection, key, result)
             return ast
 
         if handle_missing_key == "safe":
@@ -367,12 +392,28 @@ class PathAccessor:
                     ),
                 ),
             )
+            if on_step_callback is not None:
+                on_step_callback(ast, dim, collection, key, result)
             return ast
 
         ast.if_(expr.ExprNegation(PredefinedFn.has_item(collection, key)))(
             # if the key does not exist, we call the function to handle it
+            # because we do not step in -- we don't invoke the callback here
             handle_missing_key
         )
         inner_ast = ast.else_()
         inner_ast.assign(result, PredefinedFn.item_getter(collection, key))
+        if on_step_callback is not None:
+            on_step_callback(inner_ast, dim, collection, key, result)
         return inner_ast
+
+
+class OnStepCallback(Protocol):
+    def __call__(
+        self,
+        ast: AST,
+        dim: int,
+        collection: expr.Expr,
+        key: expr.Expr,
+        result: DeferredVar | Var,
+    ): ...

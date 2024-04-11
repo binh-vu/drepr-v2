@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Optional, TypeAlias, cast
 
@@ -16,6 +17,7 @@ from drepr.models.prelude import (
     EdgeId,
     LiteralNode,
     NodeId,
+    Resource,
 )
 from drepr.planning.drepr_model_alignments import DReprModelAlignments
 from drepr.planning.topological_sorting import topological_sorting
@@ -23,12 +25,15 @@ from drepr.planning.topological_sorting import topological_sorting
 
 @dataclass
 class ClassesMapExecutionPlan:
+    desc: DRepr
     # read_plans: list[ReadPlan]
     # write_plan: WritePlan
     class_map_plans: list[ClassMapPlan]
 
-    @staticmethod
-    def create(desc: DRepr):
+    @classmethod
+    def create(cls, desc: DRepr):
+        desc = cls.rewrite_desc_for_preprocessing_output(desc)
+
         reversed_topo_orders = topological_sorting(desc.sm)
         alignments = DReprModelAlignments.create(desc)
         edges_optional = {e.edge_id: not e.is_required for e in desc.sm.edges.values()}
@@ -143,7 +148,30 @@ class ClassesMapExecutionPlan:
             class2plan[class_id] = classplan
             class_map_plans.append(classplan)
 
-        return ClassesMapExecutionPlan(class_map_plans)
+        return ClassesMapExecutionPlan(desc, class_map_plans)
+
+    @classmethod
+    def rewrite_desc_for_preprocessing_output(cls, desc: DRepr):
+        if all(not pre.is_output_new_data() for pre in desc.preprocessing):
+            return desc
+
+        desc = deepcopy(desc)
+        assert all(not r.is_preprocessing_output() for r in desc.resources)
+        for pre in desc.preprocessing:
+            if not pre.is_output_new_data():
+                continue
+
+            attr = pre.get_new_data_attribute("")
+            newresource = Resource.create_preprocessing_output(attr.id)
+            attr.resource_id = newresource.id
+
+            assert not desc.has_attr(
+                attr.id
+            ), f"Preprocessing attempts to write to an existing attribute: {attr.id}. Please change the output attribute id"
+            desc.attrs.append(attr)
+            desc.add_resource(newresource)
+
+        return desc
 
 
 @dataclass

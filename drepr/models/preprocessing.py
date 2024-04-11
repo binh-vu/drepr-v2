@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, Union
 
+from drepr.models.attr import Attr
+
 from .path import Path
 
 
@@ -70,6 +72,50 @@ class Preprocessing:
             raise NotImplementedError()
 
         return Preprocessing(type, value)
+
+    def is_output_new_data(self) -> bool:
+        """Check if the preprocessing will generate new data. The new data is stored in a new variable"""
+        if self.type == PreprocessingType.pmap:
+            assert isinstance(self.value, PMap)
+            return self.value.output is not None
+        elif self.type == PreprocessingType.pfilter:
+            assert isinstance(self.value, PFilter)
+            return self.value.output is not None
+        elif self.type == PreprocessingType.psplit:
+            assert isinstance(self.value, PSplit)
+            return self.value.output is not None
+        elif self.type == PreprocessingType.rmap:
+            assert isinstance(self.value, RMap)
+            return self.value.output is not None
+        else:
+            raise NotImplementedError()
+
+    def get_new_data_attribute(self, resource_id: str) -> Attr:
+        if self.type == PreprocessingType.pmap:
+            assert isinstance(self.value, PMap) and self.value.output is not None
+            attr_id = self.value.output
+            attr_path = self.value.path
+        elif self.type == PreprocessingType.pfilter:
+            assert isinstance(self.value, PFilter) and self.value.output is not None
+            attr_id = self.value.output
+            attr_path = self.value.path
+        elif self.type == PreprocessingType.psplit:
+            assert isinstance(self.value, PSplit) and self.value.output is not None
+            attr_id = self.value.output
+            attr_path = self.value.path
+        elif self.type == PreprocessingType.rmap:
+            assert isinstance(self.value, RMap) and self.value.output is not None
+            attr_id = self.value.output
+            attr_path = self.value.path
+        else:
+            raise NotImplementedError()
+
+        return Attr(
+            id=attr_id,
+            resource_id=resource_id,
+            path=attr_path,
+            missing_values=[None],
+        )
 
 
 class Context:

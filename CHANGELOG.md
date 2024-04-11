@@ -2,15 +2,19 @@
 
 ## Unreleased
 
+### Added
+
+- Users can output preprocessing results to an attribute
+
 ### Fixed
 
-- Fix errors for models that have missing values and optional property
+- Fixed errors for models that have missing values and optional property
 
 ## [1.1.3] - 2024-03-26
 
 ### Fixed
 
-- Fix `drepr:uri` does not generate the URI.
+- Fixed `drepr:uri` does not generate the URI.
 
 ## [1.1.2] - 2024-03-22
 
@@ -20,7 +24,7 @@
 
 ### Changed
 
-- Improve the performance of alignment inference by using a more efficient algorithm
+- Improved the performance of alignment inference by using a more efficient algorithm
 
 ## [1.1.1] - 2024-03-21
 

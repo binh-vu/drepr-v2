@@ -5,9 +5,8 @@ from enum import Enum
 from sys import prefix
 from typing import Any, NamedTuple, Optional, TypeAlias, Union
 
-from rdflib import OWL, RDF, RDFS, XSD
-
 from drepr.utils.namespace_mixin import NamespaceMixin
+from rdflib import OWL, RDF, RDFS, XSD
 
 from .attr import Attr, AttrId
 
@@ -40,6 +39,9 @@ class DataType(str):
 
         obj.prefixes = prefixes
         return obj
+
+    def __getnewargs__(self) -> tuple[str, dict[str, str]]:
+        return str(self), self.prefixes
 
     def get_rel_uri(self):
         for prefix, uri in self.prefixes.items():

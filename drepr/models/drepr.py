@@ -156,19 +156,27 @@ class DRepr:
         """
         # CHECK 1: all references (resource id, attribute ids) are valid
         resource_ids = {r.id for r in self.resources}
-        for pref in self.preprocessing:
-            if pref.value.output is not None:
-                # preprocessing create new resource
-                assert (
-                    pref.value.output not in resource_ids
-                ), "Cannot overwrite existing resources"
-                resource_ids.add(pref.value.output)
-        attr_ids = {attr.id for attr in self.attrs}
+        for r in self.resources:
+            assert not r.is_preprocessing_output(), (
+                f"Resource {r.id} is detected as output of a preprocessing step. "
+                f"Please choose a different name"
+            )
 
+        attr_ids = {attr.id for attr in self.attrs}
+        assert len(attr_ids) == len(self.attrs), "Duplicate attribute ids"
         for attr in self.attrs:
             assert (
                 attr.resource_id in resource_ids
             ), f"Attribute {attr.resource_id} does not belong to any resources"
+
+        for pref in self.preprocessing:
+            if pref.value.output is not None:
+                # preprocessing create new attribute
+                assert (
+                    pref.value.output not in attr_ids
+                ), f"Cannot overwrite existing attribute: {pref.value.output}"
+                attr_ids.add(pref.value.output)
+
         for align in self.aligns:
             if isinstance(align, AutoAlignment):
                 if align.attrs is not None:
@@ -421,6 +429,10 @@ class DRepr:
             if r.id == resource_id:
                 return r
         return None
+
+    def add_resource(self, resource: Resource):
+        assert self.get_resource_by_id(resource.id) is None
+        self.resources.append(resource)
 
     def has_attr(self, attr_id: str) -> bool:
         return any(a.id == attr_id for a in self.attrs)

@@ -91,7 +91,7 @@ def main(
     else:
         output = MemoryOutput(format)
 
-    prog = gen_program(parsed_repr, exec_plan, output, debuginfo).to_python()
+    prog = gen_program(exec_plan.desc, exec_plan, output, debuginfo).to_python()
     cleanup = progfile is None
     if progfile is not None:
         with open(progfile, "w") as f:
@@ -107,9 +107,24 @@ def main(
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     if outfile is not None:
-        module.main(*[parsed_resources[r.id] for r in parsed_repr.resources], outfile)
+        module.main(
+            *[
+                parsed_resources[r.id]
+                for r in exec_plan.desc.resources
+                if not r.is_preprocessing_output()
+            ],
+            outfile,
+        )
     else:
-        print(module.main(*[parsed_resources[r.id] for r in parsed_repr.resources]))
+        print(
+            module.main(
+                *[
+                    parsed_resources[r.id]
+                    for r in exec_plan.desc.resources
+                    if not r.is_preprocessing_output()
+                ]
+            )
+        )
 
     if cleanup:
         progfile.unlink()
