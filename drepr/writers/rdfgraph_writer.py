@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from rdflib import RDF, BNode, Graph, Literal, Namespace, URIRef
-
 from drepr.models.sm import DREPR_URI
 from drepr.writers.base import StreamClassWriter
+from rdflib import RDF, BNode, Graph, Literal, Namespace, URIRef
 
 SubjVal = str | tuple | int | bool
 
@@ -21,7 +20,9 @@ class RDFGraphWriter(StreamClassWriter):
         self.subj: Optional[URIRef | BNode] = None
         self.buffer: list[tuple[URIRef, URIRef | BNode | Literal]] = []
         self.is_buffered: bool = False
-        self.has_subj_data: bool = False
+        # whether the current subject has any data or not
+        # if the subject has URI, then it has data
+        self.subj_has_data: bool = False
 
     def has_written_record(self, subj: SubjVal) -> bool:
         return subj in self.written_records
@@ -32,15 +33,18 @@ class RDFGraphWriter(StreamClassWriter):
         self.origin_subj = subj
         if is_blank:
             self.subj = BNode()
+            self.subj_has_data = False
         else:
             # subj will be a string for URIRef
             self.subj = URIRef(subj)  # type: ignore
+            self.subj_has_data = True
 
         if is_buffered:
             self.buffer = [(RDF.type, URIRef(class_uri))]
         else:
             self.g.add((self.subj, RDF.type, URIRef(class_uri)))
         self.is_buffered = is_buffered
+        self.subj_has_data = False
 
     def end_record(self):
         if self.subj is None:
@@ -53,14 +57,16 @@ class RDFGraphWriter(StreamClassWriter):
             self.buffer = []
         self.written_records[self.origin_subj] = self.subj
         self.subj = None
+        self.subj_has_data = False
 
     def abort_record(self):
         """Abort the record that is being written"""
         self.subj = None
+        self.subj_has_data = False
         self.buffer = []
 
-    def is_record_empty(self):
-        return not self.has_subj_data
+    def is_record_empty(self) -> bool:
+        return not self.subj_has_data
 
     def write_data_property(self, predicate_id: str, value: Any, dtype: Optional[str]):
         if dtype == DREPR_URI:
@@ -68,6 +74,7 @@ class RDFGraphWriter(StreamClassWriter):
         else:
             value = Literal(value, datatype=dtype)
 
+        self.subj_has_data = True
         if self.is_buffered:
             self.buffer.append((URIRef(predicate_id), value))
         else:
@@ -83,6 +90,7 @@ class RDFGraphWriter(StreamClassWriter):
         is_new_subj: bool,
     ):
         object = self.written_records[object]
+        self.subj_has_data = True
         if self.is_buffered:
             self.buffer.append((URIRef(predicate_id), object))
         else:

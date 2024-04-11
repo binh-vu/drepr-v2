@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Fix errors for models that have missing values and optional property
+
 ## [1.1.3] - 2024-03-26
 
 ### Fixed

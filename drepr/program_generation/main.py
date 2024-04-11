@@ -7,7 +7,6 @@ from typing import Callable
 
 from codegen.models import AST, PredefinedFn, Program, expr, stmt
 from codegen.models.var import DeferredVar
-
 from drepr.models.path import IndexExpr
 from drepr.models.prelude import DRepr, OutputFormat
 from drepr.planning.class_map_plan import (
@@ -332,6 +331,7 @@ def gen_classplan_executor(
 
     if isinstance(classplan.subject, BlankSubject) and can_class_missing:
         ast.if_(writer.is_record_empty(ast))(lambda ast00: writer.abort_record(ast00))
+        ast.else_()(lambda ast00: writer.end_record(ast00))
     else:
         writer.end_record(ast)
 
@@ -406,16 +406,16 @@ def gen_classprop_body(
             # leverage the fact that if True will be optimized away
             is_prop_val_not_missing = lambda ast: expr.ExprConstant(True)
         else:
-            is_prop_val_not_missing = lambda ast: PredefinedFn.set_contains(
-                expr.ExprNegation(
+            is_prop_val_not_missing = lambda ast: expr.ExprNegation(
+                PredefinedFn.set_contains(
                     expr.ExprVar(
                         program.get_var(
                             key=VarSpace.attr_missing_values(attr.id),
                             at=ast.next_child_id(),
                         )
-                    )
+                    ),
+                    get_prop_val(ast),
                 ),
-                get_prop_val(ast),
             )
         write_fn = partial(
             writer.write_data_property, dtype=expr.ExprConstant(classprop.datatype)

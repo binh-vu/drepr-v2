@@ -24,6 +24,11 @@ class CSVProp:
     delimiter: str = ","
 
 
+# @dataclass
+# class SpreadsheetProp:
+#     worksheet: Optional[str] = None
+
+
 @dataclass
 class Resource:
     id: ResourceId
