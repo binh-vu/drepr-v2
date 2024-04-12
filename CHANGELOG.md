@@ -10,6 +10,8 @@
 ### Fixed
 
 - Fixed errors for models that have missing values and optional property
+- Fixed topological sort for execution planning
+- Fixed processing non-optional object property
 
 ## [1.1.3] - 2024-03-26
 

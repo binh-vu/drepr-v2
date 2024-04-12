@@ -211,11 +211,11 @@ def gen_classplan_executor(
             for dprop in classplan.data_props
         )
         or any(
-            not oprop.is_optional and not oprop.can_target_missing
+            not oprop.is_optional and oprop.can_target_missing
             for oprop in classplan.object_props
         )
         or any(
-            not oprop.is_optional and not oprop.can_target_missing
+            not oprop.is_optional and oprop.can_target_missing
             for oprop in classplan.buffered_object_props
         )
     )
@@ -343,7 +343,7 @@ def gen_classplan_executor(
         gen_classprop_body(
             program,
             desc,
-            ast,
+            ast.block(),
             writer,
             is_buffered,
             is_subj_blank,

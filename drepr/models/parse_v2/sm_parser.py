@@ -25,7 +25,7 @@ class SMParser:
         properties:
             - [<predicate>, <attr_id>, (<data_type>, (<is_required=false>)?)?]
         links:
-            - [<predicate>, <class_id>]
+            - [<predicate>, <class_id>, (<is_required=false>)?]
         static_properties:
             - [<predicate>, <value>, (<data_type>)?]
         inverse_static_properties:
@@ -43,7 +43,7 @@ class SMParser:
         "inverse_static_properties",
     }
 
-    REG_SM_CLASS = re.compile(r"^((.+):\d+)$")
+    REG_SM_CLASS = re.compile(r"^((.+):[a-zA-Z0-9]+)$")
     REG_SM_DNODE = re.compile(r"^((?:(?!--).)+:\d+)--((?:(?!\^\^).)+)(?:\^\^(.+))?$")
     REG_SM_LNODE = re.compile(
         r"^((?:(?!--).)+:\d+)--((?:(?!--).)+)--((?:(?!\^\^).)+)(?:\^\^(.+))?$"
@@ -84,7 +84,7 @@ class SMParser:
                 class_name = m.group(2)
             except Exception as e:
                 raise InputError(
-                    f"{trace0}\nERROR: invalid class_id `{class_id}`. Expect to be <string>:<number>"
+                    f"{trace0}\nERROR: invalid class_id `{class_id}`. Expect to be <string>:<alphanumeric>"
                 )
 
             nodes[class_id] = ClassNode(class_id, class_name)
@@ -140,14 +140,24 @@ class SMParser:
 
             for i, link_conf in enumerate(class_conf.get("links", [])):
                 trace1 = f"{trace0}\nParsing link {i}: {link_conf}"
-                if len(link_conf) != 2:
+                if not (2 <= len(link_conf) <= 3):
                     raise InputError(
-                        f"{trace1}\nERROR: Expect value of the link to be an array of two "
-                        f"items (<predicate>, <class_id>)"
+                        f"{trace1}\nERROR: Expect value of the link to be an array of two or three"
+                        f"items (<predicate>, <class_id>, <is_required=false>)"
                     )
-                predicate, object_class_id = link_conf
+
+                if len(link_conf) == 2:
+                    predicate, object_class_id = link_conf
+                    is_required = False
+                else:
+                    predicate, object_class_id, is_required = link_conf
+
                 edges[len(edges)] = Edge(
-                    len(edges), class_id, object_class_id, predicate
+                    len(edges),
+                    class_id,
+                    object_class_id,
+                    predicate,
+                    is_required=is_required,
                 )
 
             for i, prop in enumerate(class_conf.get("static_properties", [])):

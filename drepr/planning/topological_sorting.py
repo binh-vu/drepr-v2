@@ -38,22 +38,12 @@ def topological_sorting(sm: SemanticModel) -> ReversedTopoSortResult:
             # we don't have any unvisited node left, so we finish!
             break
 
-        # preparing the data
-        for k in tmp_visited_nodes:
-            tmp_visited_nodes[k] = False
-
         # loop until it breaks all cycles
-        while dfs_breaking_cycle(
-            sm, random_start_node, tmp_visited_nodes, removed_outgoing_edges
-        ):
-            # reset the tmp visited nodes
-            for k in tmp_visited_nodes:
-                tmp_visited_nodes[k] = False
+        while dfs_breaking_cycle(sm, random_start_node, [], removed_outgoing_edges):
+            pass
 
-        # mark visited nodes
-        for uid, is_visited in tmp_visited_nodes.items():
-            if is_visited:
-                visited_nodes[uid] = True
+        # mark visited nodes so that we can just skip them
+        reverse_dfs(sm, random_start_node, visited_nodes, removed_outgoing_edges)
 
     # now we get acyclic graph, determine the topo-order
     reversed_topo_order = []
@@ -120,25 +110,39 @@ def dfs_reverse_topo_sort(
 def dfs_breaking_cycle(
     sm: SemanticModel,
     node: str,
-    visited_nodes: dict[str, bool],
+    visited_path: list[str],
     removed_outgoing_edges: dict[int, bool],
 ) -> bool:
     """
     Try to break cycles using invert DFS. It returns true when break one cycle, and it terminates
     immediately. Thus, requires you to run this function many times until it return false
     """
-    visited_nodes[node] = True
+    visited_path.append(node)
 
     for e in sm.iter_incoming_edges(node):
         if not removed_outgoing_edges[e.edge_id]:
-            if visited_nodes[e.source_id]:
-                # this node is visited, and it is visited by traveling through `e`, we can drop `e` and move on
+            if e.source_id in visited_path:
+                # this node is visited before in the path, and it is visited by traveling through `e`, we can drop `e` and move on
                 removed_outgoing_edges[e.edge_id] = True
                 return True
 
             if dfs_breaking_cycle(
-                sm, e.source_id, visited_nodes, removed_outgoing_edges
+                sm, e.source_id, visited_path, removed_outgoing_edges
             ):
                 return True
 
+    visited_path.pop()
     return False
+
+
+def reverse_dfs(
+    sm: SemanticModel,
+    node: str,
+    visited_nodes: dict[str, bool],
+    removed_outgoing_edges: dict[int, bool],
+) -> bool:
+    """Reverse DFS to visit all ancestors of a node"""
+    visited_nodes[node] = True
+    for e in sm.iter_incoming_edges(node):
+        if not removed_outgoing_edges[e.edge_id]:
+            reverse_dfs(sm, e.source_id, visited_nodes, removed_outgoing_edges)

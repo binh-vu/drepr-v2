@@ -32,8 +32,12 @@ class RDFGraphWriter(StreamClassWriter):
     ):
         self.origin_subj = subj
         if is_blank:
-            self.subj = BNode()
-            self.subj_has_data = False
+            if subj in self.written_records:
+                self.subj = self.written_records[subj]
+                self.subj_has_data = True
+            else:
+                self.subj = BNode()
+                self.subj_has_data = False
         else:
             # subj will be a string for URIRef
             self.subj = URIRef(subj)  # type: ignore
