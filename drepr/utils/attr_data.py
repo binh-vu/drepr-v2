@@ -47,7 +47,7 @@ class AttributeData:
             return None
 
         next_idx = idx
-        while next_idx < len(steps):
+        while next_idx < len(steps) - 1:
             step = steps[next_idx]
             if not isinstance(step, dpath.IndexExpr):
                 break

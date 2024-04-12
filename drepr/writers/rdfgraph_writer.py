@@ -73,6 +73,8 @@ class RDFGraphWriter(StreamClassWriter):
         return not self.subj_has_data
 
     def write_data_property(self, predicate_id: str, value: Any, dtype: Optional[str]):
+        if self.subj is None:
+            return
         if dtype == DREPR_URI:
             value = URIRef(value)
         else:
@@ -93,6 +95,8 @@ class RDFGraphWriter(StreamClassWriter):
         is_object_blank: bool,
         is_new_subj: bool,
     ):
+        if self.subj is None:
+            return
         object = self.written_records[object]
         self.subj_has_data = True
         if self.is_buffered:
