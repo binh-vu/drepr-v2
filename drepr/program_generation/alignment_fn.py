@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Callable, Literal, Optional, Protocol
 
-from codegen.models import AST, DeferredVar, PredefinedFn, Program, Var, expr, stmt
-
 import drepr.models.path as path
+from codegen.models import AST, DeferredVar, PredefinedFn, Program, Var, expr, stmt
 from drepr.models.align import IdenticalAlign
 from drepr.models.prelude import Alignment, Attr, DRepr, RangeAlignment
 from drepr.program_generation.predefined_fn import DReprPredefinedFn
@@ -31,8 +30,25 @@ class AlignmentFn:
                     ast, align, validate_path, on_missing_key, iter_final_list
                 )
             elif isinstance(align, IdenticalAlign):
-                # this is the alignment between the same attribute
-                continue
+                # if this is the alignment between the same attribute -- do nothing
+                if align.source == align.target:
+                    continue
+
+                # the two attributes are different, but they have identical align, it means that they are single-value attributes
+                # we just need to access the value of the target attribute
+                target = self.desc.get_attr_by_id(align.target)
+                assert all(
+                    isinstance(step, path.IndexExpr) for step in target.path.steps
+                )
+                ast = PathAccessor(self.program).iterate_elements(
+                    ast,
+                    target,
+                    aligned_attr=None,
+                    to_aligned_dim=None,
+                    validate_path=validate_path,
+                    on_missing_key=on_missing_key,
+                    iter_final_list=iter_final_list,
+                )
             else:
                 raise NotImplementedError(type(align))
         return ast

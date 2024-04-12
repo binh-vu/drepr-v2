@@ -4,6 +4,8 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Optional
 
+from graph.retworkx import RetworkXStrDiGraph
+
 from drepr.models.align import AlignedStep, AutoAlignment
 from drepr.models.attr import Attr
 from drepr.models.path import IndexExpr, RangeExpr, SetIndexExpr
@@ -16,7 +18,6 @@ from drepr.models.prelude import (
     RangeAlignment,
     ValueAlignment,
 )
-from graph.retworkx import RetworkXStrDiGraph
 
 
 @dataclass
@@ -61,7 +62,7 @@ class DReprModelAlignments:
                 )
 
         for a in desc.attrs:
-            aligns[(a.id, a.id)] = [IdenticalAlign()]
+            aligns[(a.id, a.id)] = [IdenticalAlign(a.id, a.id)]
 
         inf = DReprModelAlignments(desc, aligns)
         inf.inference()
@@ -76,9 +77,9 @@ class DReprModelAlignments:
         }
         for (source, target), aligns in self.aligns.items():
             assert len(aligns) <= 1, aligns
-            if len(aligns) == 0:
+            if source == target or len(aligns) == 0:
                 continue
-            if isinstance(aligns[0], (RangeAlignment, ValueAlignment)):
+            if isinstance(aligns[0], (RangeAlignment, ValueAlignment, IdenticalAlign)):
                 ig[source][target] = sum(
                     self.score_alignment(align) for align in aligns
                 )
@@ -307,7 +308,9 @@ class DReprModelAlignments:
         return joins
 
     @staticmethod
-    def auto_align(source: Attr, target: Attr) -> Optional[RangeAlignment]:
+    def auto_align(
+        source: Attr, target: Attr
+    ) -> Optional[RangeAlignment | IdenticalAlign]:
         # TODO: fix auto-alignment
         source_range_steps = [
             i for i, step in enumerate(source.path.steps) if isinstance(step, RangeExpr)
@@ -317,6 +320,18 @@ class DReprModelAlignments:
         ]
 
         if len(source_range_steps) == 0 or len(target_range_steps) == 0:
+            # mapping between two single values is identical mapping
+            is_source_single_val = all(
+                isinstance(step, IndexExpr) for step in source.path.steps
+            )
+            is_target_single_val = all(
+                isinstance(step, IndexExpr) for step in target.path.steps
+            )
+            if is_source_single_val and is_target_single_val:
+                return IdenticalAlign(source.id, target.id)
+
+            if is_source_single_val or is_target_single_val:
+                return RangeAlignment(source.id, target.id, [])
             return None
 
         end = min(source_range_steps[-1], target_range_steps[-1]) + 1

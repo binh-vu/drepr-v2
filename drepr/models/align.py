@@ -102,9 +102,16 @@ class ValueAlignment:
                 return Cardinality.ManyToMany
 
 
+@dataclass
 class IdenticalAlign:
+    source: AttrId
+    target: AttrId
+
     def compute_cardinality(self, desc: DRepr) -> Cardinality:
         return Cardinality.OneToOne
+
+    def swap(self) -> IdenticalAlign:
+        return IdenticalAlign(self.target, self.source)
 
 
 @dataclass

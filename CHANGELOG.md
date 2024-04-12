@@ -14,6 +14,7 @@
 - Fixed topological sort for execution planning
 - Fixed processing non-optional object property
 - Fixed bugs in `drepr.utils.attr_data` and `rdfgraph_writer` that write after abort records.
+- Fixed bugs in auto align and alignment between single-value attributes (using IdenticalAlign).
 
 ## [1.1.3] - 2024-03-26
 
