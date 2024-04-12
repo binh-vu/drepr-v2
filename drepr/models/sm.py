@@ -5,12 +5,14 @@ from enum import Enum
 from sys import prefix
 from typing import Any, NamedTuple, Optional, TypeAlias, Union
 
-from drepr.utils.namespace_mixin import NamespaceMixin
 from rdflib import OWL, RDF, RDFS, XSD
+
+from drepr.utils.namespace_mixin import NamespaceMixin
 
 from .attr import Attr, AttrId
 
 DREPR_URI = "https://purl.org/drepr/1.0/uri"
+DREPR_BLANK = "https://purl.org/drepr/1.0/blank"
 NodeId: TypeAlias = str
 EdgeId: TypeAlias = int
 

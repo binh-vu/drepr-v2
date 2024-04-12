@@ -11,6 +11,7 @@ class VarSpace:
         f"resource={resource}",
     )
     resource_data = lambda resource: (f"resource-data={resource}",)
+    preprocessing_udf = lambda func_name: (func_name,)
     preprocessing_udf_value = lambda preprocessing_id: (
         f"preprocessing-id={preprocessing_id}",
         "udf-value",

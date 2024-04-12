@@ -19,6 +19,7 @@ from drepr.models.prelude import (
     NodeId,
     Resource,
 )
+from drepr.models.sm import DREPR_BLANK
 from drepr.planning.drepr_model_alignments import DReprModelAlignments
 from drepr.planning.topological_sorting import topological_sorting
 
@@ -139,6 +140,7 @@ class ClassesMapExecutionPlan:
             classplan = ClassMapPlan.create(
                 desc,
                 class_id,
+                class2plan,
                 class2subj,
                 alignments,
                 edges_optional,
@@ -187,6 +189,7 @@ class ClassMapPlan:
     def create(
         desc: DRepr,
         class_id: NodeId,
+        class2plan: dict[NodeId, ClassMapPlan],
         class2subj: dict[NodeId, AttrId],
         inference: DReprModelAlignments,
         edges_optional: dict[EdgeId, bool],
@@ -195,12 +198,21 @@ class ClassMapPlan:
     ):
         subj = class2subj[class_id]
         uri_dnode: Optional[DataNode] = None
+        blank_dnode: Optional[DataNode] = None
         for e in desc.sm.iter_outgoing_edges(class_id):
-            if e.get_abs_iri(desc.sm) == DREPR_URI:
+            e_abs_uri = e.get_abs_iri(desc.sm)
+            if e_abs_uri == DREPR_URI:
+                assert uri_dnode is None
                 tmp = desc.sm.nodes[e.target_id]
                 assert isinstance(tmp, DataNode)
                 uri_dnode = tmp
-                break
+            elif e_abs_uri == DREPR_BLANK:
+                assert blank_dnode is None
+                tmp = desc.sm.nodes[e.target_id]
+                assert isinstance(tmp, DataNode)
+                blank_dnode = tmp
+
+        assert not (uri_dnode is not None and blank_dnode is not None)
 
         # generate other properties
         literal_props = []
@@ -212,8 +224,8 @@ class ClassMapPlan:
             target = desc.sm.nodes[e.target_id]
             if isinstance(target, DataNode):
                 attribute = desc.get_attr_by_id(target.attr_id)
-
-                if e.get_abs_iri(desc.sm) != DREPR_URI:
+                e_abs_iri = e.get_abs_iri(desc.sm)
+                if e_abs_iri != DREPR_URI and e_abs_iri != DREPR_BLANK:
                     alignments = inference.get_alignments(subj, target.attr_id)
                     alignments_cardinality = inference.estimate_cardinality(alignments)
 
@@ -254,6 +266,26 @@ class ClassMapPlan:
                 alignments = inference.get_alignments(subj, attribute.id)
 
                 if target.is_blank_node(desc.sm):
+                    if any(
+                        etmp.get_abs_iri(desc.sm) == DREPR_BLANK
+                        for etmp in desc.sm.iter_outgoing_edges(target.node_id)
+                    ):
+                        # ensure that it is consistent
+                        assert (
+                            target.node_id in class2plan
+                            and isinstance(
+                                (
+                                    targetclsplansubj := class2plan[
+                                        target.node_id
+                                    ].subject
+                                ),
+                                BlankSubject,
+                            )
+                            and targetclsplansubj.use_attr_value
+                        )
+                        use_attr_value = True
+                    else:
+                        use_attr_value = False
                     prop = BlankObject(
                         attr=attribute,
                         alignments_cardinality=inference.estimate_cardinality(
@@ -264,6 +296,7 @@ class ClassMapPlan:
                         class_id=class_id,
                         is_optional=edges_optional[e.edge_id],
                         can_target_missing=edges_missing_values[e.edge_id],
+                        use_attr_value=use_attr_value,
                     )
                 else:
                     prop = IDObject(
@@ -287,8 +320,12 @@ class ClassMapPlan:
         subj_attr = desc.get_attr_by_id(subj)
 
         if uri_dnode is None:
+            if blank_dnode is not None:
+                assert blank_dnode.attr_id == subj
             subject = BlankSubject(
                 attr=subj_attr,
+                use_attr_value=blank_dnode is not None,
+                missing_values=set(subj_attr.missing_values),
             )
         else:
             # get missing values from the real subjects
@@ -337,6 +374,7 @@ class ClassMapPlan:
         data_nodes: list[DataNode] = []
         attrs: list[AttrId] = []
         uri_attr: Optional[AttrId] = None
+        blank_attr: Optional[AttrId] = None
 
         for e in desc.sm.iter_outgoing_edges(class_id):
             target = desc.sm.nodes[e.target_id]
@@ -345,8 +383,15 @@ class ClassMapPlan:
                 data_nodes.append(target)
                 attrs.append(target.attr_id)
 
-                if e.get_abs_iri(desc.sm) == DREPR_URI:
+                e_abs_iri = e.get_abs_iri(desc.sm)
+                if e_abs_iri == DREPR_URI:
+                    assert uri_attr is None
                     uri_attr = target.attr_id
+                elif e_abs_iri == DREPR_BLANK:
+                    assert blank_attr is None
+                    blank_attr = target.attr_id
+
+        assert not (uri_attr is not None and blank_attr is not None)
 
         # if the subject attribute is provided, then, we will use it.
         subjs = []
@@ -381,7 +426,9 @@ class ClassMapPlan:
                 )
             )
 
-        return ClassMapPlan.select_subject(desc, class_id, subjs, attrs, uri_attr)
+        return ClassMapPlan.select_subject(
+            desc, class_id, subjs, attrs, uri_attr, blank_attr
+        )
 
     @staticmethod
     def select_subject(
@@ -390,15 +437,22 @@ class ClassMapPlan:
         subjs: list[AttrId],
         attrs: list[AttrId],
         uri_attr: Optional[AttrId],
+        blank_attr: Optional[AttrId],
     ) -> AttrId:
         if uri_attr is not None and uri_attr in subjs:
             return uri_attr
+        if blank_attr is not None and blank_attr in subjs:
+            return blank_attr
         return subjs[0]
 
 
 @dataclass
 class BlankSubject:
     attr: Attr
+    # whether to use the attribute value as the value of the subject
+    use_attr_value: bool
+    # only works when use_attr_value is True
+    missing_values: set[MISSING_VALUE_TYPE]
 
 
 @dataclass
@@ -450,6 +504,8 @@ class BlankObject:
     is_optional: bool
     # whether an instance of the target class can be missing
     can_target_missing: bool
+    # whether to use the attribute value as the value of the blank object
+    use_attr_value: bool
 
 
 @dataclass

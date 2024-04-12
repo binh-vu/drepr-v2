@@ -5,6 +5,7 @@
 ### Added
 
 - Users can output preprocessing results to an attribute
+- Added `drepr:blank` to automatically merge duplicated blank nodes
 
 ### Fixed
 

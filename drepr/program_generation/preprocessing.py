@@ -361,7 +361,7 @@ class GenPreprocessing:
                 insert_source_tree(inner_udf, child)
 
             # now we create the user-defined function
-            fnvar = DeferredVar(fnname)
+            fnvar = DeferredVar(fnname, key=VarSpace.preprocessing_udf(fnname))
             self.program.root.assign(
                 fnvar,
                 expr.ExprFuncCall(expr.ExprIdent("get_" + fnname), []),

@@ -234,36 +234,53 @@ def gen_classplan_executor(
             )
         )
     else:
-        # if this is a blank node, the subj_val is the entire index that leads to the last value
-        get_subj_val = lambda ast: (
-            PredefinedFn.tuple(
-                [
-                    expr.ExprConstant(
-                        desc.get_attr_index_by_id(classplan.subject.attr.id)
-                    )
-                ]
-                + [
-                    expr.ExprVar(
-                        program.get_var(
-                            key=VarSpace.attr_index_dim(
-                                classplan.subject.attr.resource_id,
-                                classplan.subject.attr.id,
-                                dim,
-                            ),
-                            at=ast.next_child_id(),
-                        )
-                    )
-                    for dim, step in enumerate(classplan.subject.attr.path.steps)
-                    if not isinstance(step, IndexExpr)
-                ]
+        assert isinstance(classplan.subject, BlankSubject)
+        if classplan.subject.use_attr_value:
+            get_subj_val = lambda ast: expr.ExprVar(
+                program.get_var(
+                    key=VarSpace.attr_value_dim(
+                        classplan.subject.attr.resource_id,
+                        classplan.subject.attr.id,
+                        len(classplan.subject.attr.path.steps) - 1,
+                    ),
+                    at=ast.next_child_id(),
+                )
             )
-        )
+        else:
+            # if we don't use attr value, the subj_val is the entire index that leads to the last value
+            get_subj_val = lambda ast: (
+                PredefinedFn.tuple(
+                    [
+                        expr.ExprConstant(
+                            desc.get_attr_index_by_id(classplan.subject.attr.id)
+                        )
+                    ]
+                    + [
+                        expr.ExprVar(
+                            program.get_var(
+                                key=VarSpace.attr_index_dim(
+                                    classplan.subject.attr.resource_id,
+                                    classplan.subject.attr.id,
+                                    dim,
+                                ),
+                                at=ast.next_child_id(),
+                            )
+                        )
+                        for dim, step in enumerate(classplan.subject.attr.path.steps)
+                        if not isinstance(step, IndexExpr)
+                    ]
+                )
+            )
 
     if (
         isinstance(classplan.subject, (InternalIDSubject, ExternalIDSubject))
         and len(classplan.subject.attr.missing_values) > 0
+    ) or (
+        isinstance(classplan.subject, BlankSubject)
+        and classplan.subject.use_attr_value
+        and len(classplan.subject.attr.missing_values) > 0
     ):
-        # we know immediately that it's missing if the URI is missing
+        # we know immediately that it's missing if the subject value is missing
 
         if ast.id == parent_ast.id:
             # same ast because of a single value, we can't use continue
@@ -311,7 +328,7 @@ def gen_classplan_executor(
         gen_classprop_body(
             program,
             desc,
-            ast,
+            ast.block(),
             writer,
             is_buffered,
             is_subj_blank,
@@ -390,25 +407,37 @@ def gen_classprop_body(
             )
     else:
         assert isinstance(classprop, BlankObject)
-        get_prop_val = lambda ast: (
-            PredefinedFn.tuple(
-                [expr.ExprConstant(desc.get_attr_index_by_id(classprop.attr.id))]
-                + [
-                    expr.ExprVar(
-                        program.get_var(
-                            key=VarSpace.attr_index_dim(
-                                classprop.attr.resource_id,
-                                classprop.attr.id,
-                                dim,
-                            ),
-                            at=ast.next_child_id(),
-                        )
-                    )
-                    for dim, step in enumerate(classprop.attr.path.steps)
-                    if not isinstance(step, IndexExpr)
-                ]
+        if classprop.use_attr_value:
+            get_prop_val = lambda ast: expr.ExprVar(
+                program.get_var(
+                    key=VarSpace.attr_value_dim(
+                        attr.resource_id,
+                        attr.id,
+                        len(attr.path.steps) - 1,
+                    ),
+                    at=ast.next_child_id(),
+                )
             )
-        )
+        else:
+            get_prop_val = lambda ast: (
+                PredefinedFn.tuple(
+                    [expr.ExprConstant(desc.get_attr_index_by_id(classprop.attr.id))]
+                    + [
+                        expr.ExprVar(
+                            program.get_var(
+                                key=VarSpace.attr_index_dim(
+                                    classprop.attr.resource_id,
+                                    classprop.attr.id,
+                                    dim,
+                                ),
+                                at=ast.next_child_id(),
+                            )
+                        )
+                        for dim, step in enumerate(classprop.attr.path.steps)
+                        if not isinstance(step, IndexExpr)
+                    ]
+                )
+            )
 
     is_prop_val_not_missing: Callable[[AST], expr.Expr]
     if isinstance(classprop, DataProp):

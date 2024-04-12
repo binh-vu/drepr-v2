@@ -4,8 +4,6 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Optional
 
-from graph.retworkx import RetworkXStrDiGraph
-
 from drepr.models.align import AlignedStep, AutoAlignment
 from drepr.models.attr import Attr
 from drepr.models.path import IndexExpr, RangeExpr, SetIndexExpr
@@ -18,6 +16,7 @@ from drepr.models.prelude import (
     RangeAlignment,
     ValueAlignment,
 )
+from graph.retworkx import RetworkXStrDiGraph
 
 
 @dataclass
@@ -309,6 +308,7 @@ class DReprModelAlignments:
 
     @staticmethod
     def auto_align(source: Attr, target: Attr) -> Optional[RangeAlignment]:
+        # TODO: fix auto-alignment
         source_range_steps = [
             i for i, step in enumerate(source.path.steps) if isinstance(step, RangeExpr)
         ]
@@ -319,7 +319,8 @@ class DReprModelAlignments:
         if len(source_range_steps) == 0 or len(target_range_steps) == 0:
             return None
 
-        end = min(source_range_steps[-1], target_range_steps[-1])
+        end = min(source_range_steps[-1], target_range_steps[-1]) + 1
+        assert end > 0
 
         if source.path.steps[:end] == target.path.steps[:end]:
             # we can align all of them as long as all the steps are index
@@ -335,7 +336,9 @@ class DReprModelAlignments:
                     target=target.id,
                     aligned_steps=[
                         AlignedStep(source_idx=dim, target_idx=dim)
-                        for dim in source_range_steps
+                        for dim in source_range_steps[
+                            : min(len(target_range_steps), len(source_range_steps))
+                        ]
                     ],
                 )
 
