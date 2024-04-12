@@ -249,16 +249,16 @@ class ClassMapPlan:
                             is_optional=edges_optional[e.edge_id],
                             missing_values=set(attribute.missing_values),
                             missing_path=attribute.path.has_optional_steps(),
-                            datatype=(
-                                target.data_type
-                                if target.data_type is not None
-                                else None
-                            ),
+                            datatype=(target.data_type),
                         )
                     )
             elif isinstance(target, LiteralNode):
                 literal_props.append(
-                    LiteralProp(predicate=e.get_abs_iri(desc.sm), value=target.value)
+                    LiteralProp(
+                        predicate=e.get_abs_iri(desc.sm),
+                        value=target.value,
+                        datatype=target.data_type,
+                    )
                 )
             elif isinstance(target, ClassNode):
                 attribute = desc.get_attr_by_id(class2subj[e.target_id])
@@ -492,6 +492,7 @@ class DataProp:
 class LiteralProp:
     predicate: str
     value: Any
+    datatype: Optional[str]
 
 
 @dataclass
