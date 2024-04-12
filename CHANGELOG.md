@@ -6,6 +6,7 @@
 
 - Users can output preprocessing results to an attribute
 - Added `drepr:blank` to automatically merge duplicated blank nodes
+- Unpack relative URI of static properties if the datatype is `drepr:uri`
 
 ### Fixed
 

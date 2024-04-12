@@ -1,10 +1,12 @@
 import copy
 import re
 
-from drepr.utils.misc import F
+from drepr.utils.misc import F, get_abs_iri
+from drepr.utils.namespace_mixin import NamespaceMixin
 from drepr.utils.validator import InputError, Validator
 
 from ..sm import (
+    DREPR_URI,
     ClassNode,
     DataNode,
     DataType,
@@ -186,6 +188,12 @@ class SMParser:
                     value = int(value)
                 elif isinstance(value, float):
                     value = float(value)
+
+                if data_type == DREPR_URI:
+                    assert isinstance(value, str)
+                    # test if the value is relative uri, if so, convert it to absolute uri
+                    if NamespaceMixin.is_rel_iri(value):
+                        value = get_abs_iri(prefixes, value)
 
                 node = LiteralNode(
                     node_id=f"lnode:{len(nodes)}", value=value, data_type=data_type

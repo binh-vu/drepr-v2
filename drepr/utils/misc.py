@@ -95,3 +95,12 @@ class CacheMethod:
             return fn
 
         return wrapper_fn  # type: ignore
+
+
+def get_abs_iri(prefixes: dict[str, str], rel_iri: str) -> str:
+    prefix, val = rel_iri.split(":", 1)
+    if prefix not in prefixes:
+        raise ValueError(
+            f"Cannot create absolute IRI because the prefix {prefix} does not exist"
+        )
+    return f"{prefixes[prefix]}{val}"

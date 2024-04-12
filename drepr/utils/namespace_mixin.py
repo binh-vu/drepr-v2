@@ -1,3 +1,6 @@
+from drepr.utils.misc import get_abs_iri
+
+
 class NamespaceMixin:
     prefixes: dict[str, str]
 
@@ -18,9 +21,4 @@ class NamespaceMixin:
     def get_abs_iri(self, rel_iri: str) -> str:
         """Convert a relative IRI to an absolute IRI."""
         assert self.is_rel_iri(rel_iri)
-        prefix, val = rel_iri.split(":", 1)
-        if prefix not in self.prefixes:
-            raise ValueError(
-                f"Cannot create absolute IRI because the prefix {prefix} does not exist"
-            )
-        return f"{self.prefixes[prefix]}{val}"
+        return get_abs_iri(self.prefixes, rel_iri)
