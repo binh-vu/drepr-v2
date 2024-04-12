@@ -7,6 +7,7 @@ from typing import Callable
 
 from codegen.models import AST, PredefinedFn, Program, expr, stmt
 from codegen.models.var import DeferredVar
+
 from drepr.models.path import IndexExpr
 from drepr.models.prelude import DRepr, OutputFormat
 from drepr.planning.class_map_plan import (
@@ -361,21 +362,22 @@ def gen_classplan_executor(
             debuginfo,
         )
 
-    ast.linebreak()
-    ast.comment("Set static properties")
+    if len(classplan.literal_props) > 0:
+        ast.linebreak()
+        ast.comment("Set static properties")
 
-    for litprop in classplan.literal_props:
-        gen_classprop_body(
-            program,
-            desc,
-            parent_ast,
-            ast.block(),
-            writer,
-            is_buffered,
-            is_subj_blank,
-            litprop,
-            debuginfo,
-        )
+        for litprop in classplan.literal_props:
+            gen_classprop_body(
+                program,
+                desc,
+                parent_ast,
+                ast.block(),
+                writer,
+                is_buffered,
+                is_subj_blank,
+                litprop,
+                debuginfo,
+            )
 
     assert len(classplan.buffered_object_props) == 0, "Not implemented yet"
 

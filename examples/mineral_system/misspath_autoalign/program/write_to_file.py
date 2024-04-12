@@ -105,7 +105,7 @@ def main(resource_0, output_file_1):
 				pathway_journal_index_5_76 = pathway_id_document_index_5_43
 				pathway_journal_value_5_77 = pathway_journal_value_4_75[pathway_journal_index_5_76]
 				pathway_journal_value_6_78 = pathway_journal_value_5_77["document"]
-				if not ("journal") in pathway_journal_value_6_78:
+				if not ("journal" in pathway_journal_value_6_78):
 					pass
 				else:
 					pathway_journal_value_7_79 = pathway_journal_value_6_78["journal"]
@@ -169,7 +169,7 @@ def main(resource_0, output_file_1):
 				pathway_volume_index_5_124 = pathway_id_document_index_5_43
 				pathway_volume_value_5_125 = pathway_volume_value_4_123[pathway_volume_index_5_124]
 				pathway_volume_value_6_126 = pathway_volume_value_5_125["document"]
-				if not ("volume") in pathway_volume_value_6_126:
+				if not ("volume" in pathway_volume_value_6_126):
 					pass
 				else:
 					pathway_volume_value_7_127 = pathway_volume_value_6_126["volume"]
@@ -187,7 +187,7 @@ def main(resource_0, output_file_1):
 				pathway_issue_document_index_5_135 = pathway_id_document_index_5_43
 				pathway_issue_document_value_5_136 = pathway_issue_document_value_4_134[pathway_issue_document_index_5_135]
 				pathway_issue_document_value_6_137 = pathway_issue_document_value_5_136["document"]
-				if not ("issue") in pathway_issue_document_value_6_137:
+				if not ("issue" in pathway_issue_document_value_6_137):
 					pass
 				else:
 					pathway_issue_document_value_7_138 = pathway_issue_document_value_6_137["issue"]

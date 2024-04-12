@@ -12,8 +12,8 @@ def main(resource_0):
 	end_5 = len(deposit_type_uri_value_0_3)
 	for deposit_type_uri_index_1_6 in range(start_4, end_5):
 		deposit_type_uri_value_1_7 = deposit_type_uri_value_0_3[deposit_type_uri_index_1_6]
-		if not ("deposit_type_candidate") in deposit_type_uri_value_1_7:
-			pass
+		if not ("deposit_type_candidate" in deposit_type_uri_value_1_7):
+			continue
 		else:
 			deposit_type_uri_value_2_8 = deposit_type_uri_value_1_7["deposit_type_candidate"]
 			start_9 = 0
@@ -52,7 +52,7 @@ def main(resource_0):
 		deposit_type_uri_value_0_24 = resource_data_1["MineralSite"]
 		deposit_type_uri_index_1_25 = site_name_index_1_17
 		deposit_type_uri_value_1_26 = deposit_type_uri_value_0_24[deposit_type_uri_index_1_25]
-		if not ("deposit_type_candidate") in deposit_type_uri_value_1_26:
+		if not ("deposit_type_candidate" in deposit_type_uri_value_1_26):
 			pass
 		else:
 			deposit_type_uri_value_2_27 = deposit_type_uri_value_1_26["deposit_type_candidate"]
