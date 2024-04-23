@@ -87,6 +87,16 @@ class UDFParser:
                     out[1].children.extend(self._parse_ast(stmt, imports))
             return out
 
+        if isinstance(tree, ast.For):
+            content = f"for {self._get_node_code(tree.target)}{self._get_node_code(tree.iter)}"
+            out = [SourceTree(content, [])]
+            for stmt in tree.body:
+                out[0].children.extend(self._parse_ast(stmt, imports))
+            if len(tree.orelse) > 0:
+                out.append(SourceTree("else:", []))
+                for stmt in tree.orelse:
+                    out[1].children.extend(self._parse_ast(stmt, imports))
+            return out
         raise NotImplementedError()
 
     def _get_node_code(self, node: ast.AST) -> str:

@@ -53,3 +53,20 @@ monitor_vars_notexist:
   norm:
     - a = 5 * 2
     - return value
+for_loop:
+  code: |+
+    for i in range(len(value)):
+      print(i, value[i])
+      if 'normalized_uri' not in value[i]:
+        value[i]['normalized_uri'] = ""
+    return value
+  monitor_vars:
+    context: false
+  norm:
+    - node: "for i in range(len(value)):"
+      children:
+        - print(i, value[i])
+        - node: "if 'normalized_uri' not in value[i]:"
+          children:
+            - value[i]['normalized_uri'] = ""
+    - return value

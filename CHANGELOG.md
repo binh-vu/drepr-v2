@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.1] - 2024-04-12
+
+### Fixed
+
+- Fixed not parsing for-loop in user-defined functions in the preprocessing step
+
 ## [1.2.0] - 2024-04-12
 
 ### Added
