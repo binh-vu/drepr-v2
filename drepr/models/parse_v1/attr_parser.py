@@ -110,7 +110,7 @@ class AttrParser:
             trace = f"{parse_trace}\nParsing missing_values of the attribute"
             Validator.must_be_list(attr_conf["missing_values"], trace)
             for val in attr_conf["missing_values"]:
-                if not isinstance(val, (str, int, float)):
+                if val is not None and not isinstance(val, (str, int, bool, float)):
                     raise InputError(
                         f"{trace}\nERROR: invalid value. Expected either one of string, "
                         f"integer, or float. Get f{type(val)} instead"

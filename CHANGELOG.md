@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.2] - 2024-05-03
+
+### Added
+
+- Support bool and None as missing values
+
 ## [1.2.1] - 2024-04-12
 
 ### Fixed
