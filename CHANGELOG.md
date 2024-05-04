@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.4] - 2024-05-03
+
+### Fixed
+
+- Fix bug from RDFLib for integer but formatted as float zero decimal `.0`
+
 ## [1.2.3] - 2024-05-03
 
 ### Changed

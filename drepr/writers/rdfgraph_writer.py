@@ -78,6 +78,13 @@ class RDFGraphWriter(StreamClassWriter):
         if dtype == DREPR_URI:
             value = URIRef(value)
         else:
+            # to handle a bug in RDFlib that does not serialize integer properly.
+            if (
+                dtype == "http://www.w3.org/2001/XMLSchema#integer"
+                or dtype == "http://www.w3.org/2001/XMLSchema#long"
+                or dtype == "http://www.w3.org/2001/XMLSchema#int"
+            ):
+                value = int(float(value))
             value = Literal(value, datatype=dtype)
 
         self.subj_has_data = True
