@@ -393,6 +393,14 @@ class ClassMapPlan:
 
         assert not (uri_attr is not None and blank_attr is not None)
 
+        if uri_attr is not None:
+            # always use the URI attribute because there can be a property that is a list
+            return uri_attr
+
+        if blank_attr is not None:
+            # always use the blank attribute because there can be a property that is a list
+            return blank_attr
+
         # if the subject attribute is provided, then, we will use it.
         subjs = []
         for u in data_nodes:
@@ -426,9 +434,7 @@ class ClassMapPlan:
                 )
             )
 
-        return ClassMapPlan.select_subject(
-            desc, class_id, subjs, attrs, uri_attr, blank_attr
-        )
+        return ClassMapPlan.select_subject(desc, class_id, subjs, attrs)
 
     @staticmethod
     def select_subject(
@@ -436,13 +442,7 @@ class ClassMapPlan:
         class_id: NodeId,
         subjs: list[AttrId],
         attrs: list[AttrId],
-        uri_attr: Optional[AttrId],
-        blank_attr: Optional[AttrId],
     ) -> AttrId:
-        if uri_attr is not None and uri_attr in subjs:
-            return uri_attr
-        if blank_attr is not None and blank_attr in subjs:
-            return blank_attr
         return subjs[0]
 
 

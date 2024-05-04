@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.3] - 2024-05-03
+
+### Changed
+
+- Attribute annotated with `drepr:uri` and `drepr:blank` should always be the subject of a class
+
 ## [1.2.2] - 2024-05-03
 
 ### Added
