@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.0] - 2024-05-13
+
+### Added
+
+- Add `drepr.main.convert` to convert data programmatically
+
 ## [1.2.4] - 2024-05-03
 
 ### Fixed
