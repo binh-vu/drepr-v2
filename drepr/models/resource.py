@@ -81,6 +81,13 @@ class ResourceDataFile(ResourceData):
 class ResourceDataString(ResourceData):
     value: Union[str, bytes]
 
+    def as_str(self):
+        if isinstance(self.value, bytes):
+            return self.value.decode()
+        else:
+            assert isinstance(self.value, str)
+            return self.value
+
     def to_dict(self):
         return {
             "string": (

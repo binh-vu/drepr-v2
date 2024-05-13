@@ -5,14 +5,14 @@ from pathlib import Path
 from typing import Optional
 from uuid import uuid4
 
-from drepr.models.prelude import DRepr, OutputFormat
+from drepr.models.prelude import DRepr, OutputFormat, ResourceData
 from drepr.planning.class_map_plan import ClassesMapExecutionPlan
 from drepr.program_generation.main import FileOutput, MemoryOutput, gen_program
 
 
 def convert(
     repr: DRepr | Path,
-    resources: dict[str, Path],
+    resources: dict[str, Path | ResourceData],
     progfile: Optional[Path] = None,
     outfile: Optional[Path] = None,
     format: OutputFormat = OutputFormat.TTL,

@@ -2,6 +2,12 @@
 
 ## [1.3.0] - 2024-05-13
 
+### Changed
+
+- Support passing resource data in a string directly to `drepr.main.convert`
+
+## [1.3.0] - 2024-05-13
+
 ### Added
 
 - Add `drepr.main.convert` to convert data programmatically
