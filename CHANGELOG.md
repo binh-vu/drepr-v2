@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.3] - 2024-05-13
+
+### Fixed
+
+- fix serializing drepr model
+
 ## [1.3.2] - 2024-05-13
 
 ### Changed

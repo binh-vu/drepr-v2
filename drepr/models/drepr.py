@@ -128,7 +128,7 @@ class DRepr:
             attr["value_type"] = attr["value_type"].value
         for node in obj["sm"]["nodes"].values():
             if node.get("data_type", None) is not None:
-                node["data_type"] = node["data_type"].value
+                node["data_type"] = node["data_type"].get_rel_uri()
 
         # adding a bit of meta-data about the alignment
         for align, raw_align in zip(self.aligns, obj["aligns"]):
