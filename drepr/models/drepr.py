@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 from collections import OrderedDict
 from dataclasses import asdict, dataclass
 from enum import Enum
 from io import StringIO
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 import orjson
 from ruamel.yaml import YAML
@@ -32,19 +34,19 @@ yaml.Representer.add_representer(OrderedDict, yaml.Representer.represent_dict)
 
 @dataclass
 class EngineFormat:
-    model: Dict[str, Any]
-    edges_optional: List[bool]
-    resource_idmap: Dict[str, int]
-    attribute_idmap: Dict[str, int]
-    sm_node_idmap: Dict[str, int]
+    model: dict[str, Any]
+    edges_optional: list[bool]
+    resource_idmap: dict[str, int]
+    attribute_idmap: dict[str, int]
+    sm_node_idmap: dict[str, int]
 
 
 @dataclass
 class DRepr:
-    resources: List[Resource]
-    preprocessing: List[Preprocessing]
-    attrs: List[Attr]
-    aligns: List[Alignment]
+    resources: list[Resource]
+    preprocessing: list[Preprocessing]
+    attrs: list[Attr]
+    aligns: list[Alignment]
     sm: SemanticModel
 
     @staticmethod
@@ -77,7 +79,7 @@ class DRepr:
 
     @staticmethod
     def empty() -> "DRepr":
-        return DRepr([], [], [], [], SemanticModel({}, [], {}))
+        return DRepr([], [], [], [], SemanticModel({}, {}, {}))
 
     @staticmethod
     def deserialize(raw: dict) -> "DRepr":
@@ -225,171 +227,6 @@ class DRepr:
         yaml.dump(model, out)
         return out.getvalue()
 
-    def to_engine_format(self) -> EngineFormat:
-        """
-        Turn this D-REPR configuration into the format that the engine can read
-        :return:
-        """
-        # map string id to incremental numbers (for resource id and attribute id)
-        ridmap = OrderedDict()
-        for resource in self.resources:
-            ridmap[resource.id] = len(ridmap)
-        for pref in self.preprocessing:
-            if pref.value.output is not None:
-                ridmap[pref.value.output] = len(ridmap)
-        aidmap = OrderedDict()
-        for attr in self.attrs:
-            aidmap[attr.id] = len(aidmap)
-
-        resources = []
-        for res in self.resources:
-            resources.append({"type": res.type.value})
-            if isinstance(res.prop, CSVProp):
-                resources[-1]["value"] = {
-                    "resource_id": ridmap[res.id],
-                    "delimiter": res.prop.delimiter,
-                }
-            else:
-                resources[-1]["value"] = ridmap[res.id]
-
-        preprocessing = []
-        for pref in self.preprocessing:
-            prepro = {
-                "type": pref.type.value,
-                "resource_id": ridmap[pref.value.resource_id],
-                "path": pref.value.path.to_engine_format(),
-                "output": (
-                    ridmap[pref.value.output] if pref.value.output is not None else None
-                ),
-            }
-            if isinstance(pref.value, PMap):
-                prepro["code"] = pref.value.code
-                prepro["change_structure"] = pref.value.change_structure
-            elif isinstance(pref.value, (PFilter, PSplit)):
-                prepro["code"] = pref.value.code
-            elif isinstance(pref.value, RMap):
-                prepro["func_id"] = {"t": pref.value.func_id.value}
-            else:
-                raise NotImplementedError()
-            preprocessing.append(prepro)
-
-        attributes = [
-            {
-                "id": aidmap[a.id],
-                "resource_id": ridmap[a.resource_id],
-                "path": a.path.to_engine_format(),
-                "unique": a.unique,
-                "sorted": a.sorted.value,
-                "vtype": a.value_type.value,
-                "missing_values": [
-                    self._serde_engine_value(v) for v in a.missing_values
-                ],
-            }
-            for a in self.attrs
-        ]
-
-        alignments = []
-        for align in self.aligns:
-            if isinstance(align, RangeAlignment):
-                alignments.append(
-                    {
-                        "type": AlignmentType.Range.value,
-                        "source": aidmap[align.source],
-                        "target": aidmap[align.target],
-                        "aligned_dims": [
-                            {"source": ad.source_idx, "target": ad.target_idx}
-                            for ad in align.aligned_steps
-                        ],
-                    }
-                )
-            elif isinstance(align, ValueAlignment):
-                alignments.append(
-                    {
-                        "type": AlignmentType.Value.value,
-                        "source": aidmap[align.source],
-                        "target": aidmap[align.target],
-                    }
-                )
-            else:
-                raise NotImplementedError()
-
-        engine_sm: Dict[str, Any] = {
-            "nodes": [],
-            "edges": [],
-            "prefixes": [(prefix, uri) for prefix, uri in self.sm.prefixes.items()],
-        }
-        nodes = {"cnodes": [], "dnodes": [], "lnodes": []}
-        for node_id, node in self.sm.nodes.items():
-            if isinstance(node, ClassNode):
-                nodes["cnodes"].append(
-                    {
-                        "type": "class_node",
-                        "node_id": node_id,
-                        "rel_label": node.label,
-                        "abs_label": self.sm.get_abs_iri(node.label),
-                    }
-                )
-            elif isinstance(node, DataNode):
-                nodes["dnodes"].append(
-                    {
-                        "type": "data_node",
-                        "node_id": node_id,
-                        "attr_id": aidmap[node.attr_id],
-                        "data_type": (
-                            node.data_type if node.data_type is not None else None
-                        ),
-                    }
-                )
-            elif isinstance(node, LiteralNode):
-                nodes["lnodes"].append(
-                    {
-                        "type": "literal_node",
-                        "node_id": node_id,
-                        "val": self._serde_engine_value(node.value),
-                        "data_type": (
-                            node.data_type if node.data_type is not None else None
-                        ),
-                    }
-                )
-            else:
-                raise NotImplementedError()
-
-        for k in ["cnodes", "dnodes", "lnodes"]:
-            for n in nodes[k]:
-                engine_sm["nodes"].append(n)
-        nidmap = {}
-        for i, n in enumerate(engine_sm["nodes"]):
-            nidmap[n["node_id"]] = i
-            n["node_id"] = i
-
-        for eid, edge in self.sm.edges.items():
-            engine_sm["edges"].append(
-                {
-                    "edge_id": eid,
-                    "source": nidmap[edge.source_id],
-                    "target": nidmap[edge.target_id],
-                    "rel_label": edge.label,
-                    "abs_label": self.sm.get_abs_iri(edge.label),
-                    "is_subject": edge.is_subject,
-                }
-            )
-
-        edges_optional = [not edge.is_required for edge in self.sm.edges.values()]
-
-        return EngineFormat(
-            {
-                "resources": resources,
-                "preprocessing": preprocessing,
-                "attributes": attributes,
-                "alignments": alignments,
-                "semantic_model": engine_sm,
-            },
-            edges_optional,
-            ridmap,
-            aidmap,
-            nidmap,
-        )
-
     def _serde_engine_value(self, value: Any):
         """Serialize a python value to a json representation of the Value struct in the Rust engine"""
         if value is None:
@@ -457,8 +294,10 @@ class DRepr:
 
         self.attrs.pop(idx)
         for i in range(len(self.aligns) - 1, -1, -1):
-            if self.aligns[i].source == attr_id or self.aligns[i].target == attr_id:
-                self.aligns.pop(i)
+            align = self.aligns[i]
+            if not isinstance(align, AutoAlignment):
+                if align.source == attr_id or align.target == attr_id:
+                    self.aligns.pop(i)
 
         for node in self.sm.nodes:
             if isinstance(node, DataNode) and node.attr_id == attr_id:
@@ -470,10 +309,16 @@ class DRepr:
                 self.attrs[i] = new_attr
 
         for align in self.aligns:
-            if align.source == attr_id:
-                align.source = new_attr.id
-            elif align.target == attr_id:
-                align.target = new_attr.id
+            if isinstance(align, AutoAlignment):
+                if align.attrs is not None:
+                    align.attrs = [
+                        new_attr.id if a == attr_id else a for a in align.attrs
+                    ]
+            else:
+                if align.source == attr_id:
+                    align.source = new_attr.id
+                elif align.target == attr_id:
+                    align.target = new_attr.id
 
         for node in self.sm.nodes:
             if isinstance(node, DataNode) and node.attr_id == attr_id:

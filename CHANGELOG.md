@@ -1,6 +1,12 @@
 # Changelog
 
-## [1.3.0] - 2024-05-13
+## [1.3.2] - 2024-05-13
+
+### Changed
+
+- Clean up the data and fix annotations
+
+## [1.3.1] - 2024-05-13
 
 ### Changed
 
