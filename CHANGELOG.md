@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.4] - 2024-05-13
+
+### Added
+
+- Add more supported ast types to `drepr.utils.udf`
+
 ## [1.3.3] - 2024-05-13
 
 ### Fixed

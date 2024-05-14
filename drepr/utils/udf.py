@@ -97,7 +97,40 @@ class UDFParser:
                 for stmt in tree.orelse:
                     out[1].children.extend(self._parse_ast(stmt, imports))
             return out
-        raise NotImplementedError()
+
+        if isinstance(tree, ast.Continue):
+            return [SourceTree("continue", [])]
+
+        if isinstance(tree, ast.Break):
+            return [SourceTree("break", [])]
+
+        if isinstance(tree, ast.Try):
+            out = [SourceTree("try:", [])]
+            for stmt in tree.body:
+                out[0].children.extend(self._parse_ast(stmt, imports))
+
+            if len(tree.handlers) > 0:
+                for handler in tree.handlers:
+                    except_args = ["except"]
+                    if handler.type is not None:
+                        except_args.append(self._get_node_code(handler.type))
+                    if handler.name is not None:
+                        except_args.append(handler.name)
+
+                    out.append(SourceTree(" ".join(except_args) + ":", []))
+                    for stmt in handler.body:
+                        out[-1].children.extend(self._parse_ast(stmt, imports))
+            if len(tree.orelse) > 0:
+                out.append(SourceTree("else:", []))
+                for stmt in tree.orelse:
+                    out[-1].children.extend(self._parse_ast(stmt, imports))
+            if len(tree.finalbody) > 0:
+                out.append(SourceTree("finally:", []))
+                for stmt in tree.finalbody:
+                    out[-1].children.extend(self._parse_ast(stmt, imports))
+            return out
+
+        raise NotImplementedError(type(tree))
 
     def _get_node_code(self, node: ast.AST) -> str:
         lines = self.source_code_lines[node.lineno - 1 : node.end_lineno]
