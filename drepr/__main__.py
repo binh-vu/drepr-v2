@@ -39,7 +39,7 @@ class ResourceInput:
 def main(
     repr: Annotated[
         Path,
-        typer.Option(
+        typer.Argument(
             help="A path to a file containing representation (support 2 formats: JSON & YML)",
             exists=True,
             dir_okay=False,
@@ -47,7 +47,7 @@ def main(
     ],
     resource: Annotated[
         list[str],
-        typer.Option(
+        typer.Argument(
             help="file paths of resources in this format: <resource_id>=<file_path>",
         ),
     ],
@@ -73,7 +73,7 @@ def main(
         Path,
         typer.Option(
             help="A directory to save temporary files",
-            default=Path("/tmp/drepr"),
+            default="/tmp/drepr",
         ),
     ] = Path("/tmp/drepr"),
     debuginfo: Annotated[

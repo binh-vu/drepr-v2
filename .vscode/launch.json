@@ -16,6 +16,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
+            "justMyCode": false,
             "args": [
                 // "examples/pseudo_people/s01.default.csv"
                 // "examples/mineral_site/missing_values/default.json"

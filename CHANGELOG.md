@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.6] - 2024-05-13
+
+### Fixed
+
+- Fix `typer` dependency issue
+
 ## [1.3.4] - 2024-05-13
 
 ### Added

@@ -1,4 +1,3 @@
-@prefix drepr: <https://purl.org/drepr/1.0/> .
 @prefix mndr: <https://minmod.isi.edu/resource/> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
@@ -27,8 +26,8 @@
     mndr:year 2014 .
 
 [] a mndr:MineralSystem ;
-    mndr:deposit_type "https://minmod.isi.edu/resource/Q484"^^drepr:uri,
-        "https://minmod.isi.edu/resource/Q485"^^drepr:uri ;
+    mndr:deposit_type mndr:Q484,
+        mndr:Q485 ;
     mndr:id "jvdjhdsvjhfhjsdgfkdfkgdsk" ;
     mndr:pathway [ a mndr:MappableCriteria ;
             mndr:criteria "The paragraph suggests that extensional faults and dolomitization of limestone are mappable criteria that represent the pathway for the formation and localization of syn-diagenetic Zn-Pb deposits in the MVT deposit type." ;
@@ -42,10 +41,10 @@
                     mndr:evidence_score 5e-01 ;
                     mndr:name "A night of the random names" ] ;
             mndr:supporting_references [ a mndr:Reference ;
-                    mndr:date "dbkfbdskf" ;
-                    mndr:document <doc_id> ],
-                [ a mndr:Reference ;
                     mndr:date "jhdfjhsgdjfgdjsfgjhfsgjg" ;
-                    mndr:document <doc_id_2> ] ;
+                    mndr:document <doc_id_2> ],
+                [ a mndr:Reference ;
+                    mndr:date "dbkfbdskf" ;
+                    mndr:document <doc_id> ] ;
             mndr:theorectical "Randome name strikes back" ] .
 
