@@ -46,11 +46,11 @@ def main(
         ),
     ],
     resource: Annotated[
-        list[str],
+        Optional[list[str]],
         typer.Argument(
             help="file paths of resources in this format: <resource_id>=<file_path>",
         ),
-    ],
+    ] = None,
     progfile: Annotated[
         Optional[Path],
         typer.Option(
@@ -80,9 +80,6 @@ def main(
         bool, typer.Option(help="Whether to add debug information to the program")
     ] = False,
 ):
-    parsed_resources = {
-        (x := ResourceInput.from_string(r)).id: x.file for r in resource
-    }
     parsed_repr = DRepr.parse_from_file(repr)
     exec_plan = ClassesMapExecutionPlan.create(parsed_repr)
 
@@ -102,6 +99,12 @@ def main(
         progfile = tmpdir / f"main_{unique_id}.py"
         progfile.write_text(prog)
 
+    if resource is None:
+        return
+
+    parsed_resources = {
+        (x := ResourceInput.from_string(r)).id: x.file for r in resource
+    }
     spec = importlib.util.spec_from_file_location("drepr_prog", progfile)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)

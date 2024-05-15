@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.7] - 2024-05-13
+
+### Added
+
+- CLI can be used to only generate the program.
+
 ## [1.3.6] - 2024-05-13
 
 ### Fixed
