@@ -41,6 +41,9 @@ def convert(
         progfile = tmpdir / f"main_{unique_id}.py"
         progfile.write_text(prog)
 
+    if len(resources) == 0:
+        return
+
     spec = importlib.util.spec_from_file_location("drepr_prog", progfile)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)

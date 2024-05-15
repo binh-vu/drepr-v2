@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.8] - 2024-05-14
+
+### Changed
+
+- `drepr.main` can be used to only generate the program.
+
 ## [1.3.7] - 2024-05-13
 
 ### Added
