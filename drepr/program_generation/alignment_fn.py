@@ -423,6 +423,16 @@ class PathAccessor:
             on_step_callback(inner_ast, dim, collection, key, result)
         return inner_ast
 
+    @staticmethod
+    def skip_on_missing_key(parent_tree: AST, tree: AST):
+        if parent_tree.has_statement_between_ast(stmt.ForLoopStatement, tree.id):
+            tree(stmt.ContinueStatement())
+        else:
+            # same ast because of a single value, we can't use continue
+            # however, we use pass as it's a single-level if/else -- the else part
+            # will handle the instance generation if there is no missing value.
+            tree(stmt.NoStatement())
+
 
 class OnStepCallback(Protocol):
     def __call__(

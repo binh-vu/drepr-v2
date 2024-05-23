@@ -7,7 +7,6 @@ from typing import Callable
 
 from codegen.models import AST, PredefinedFn, Program, expr, stmt
 from codegen.models.var import DeferredVar
-
 from drepr.models.path import IndexExpr
 from drepr.models.prelude import DRepr, OutputFormat
 from drepr.planning.class_map_plan import (
@@ -187,15 +186,6 @@ def gen_classplan_executor(
         desc.sm.get_abs_iri(desc.sm.get_class_node(classplan.class_id).label)
     )
 
-    def on_missing_key(tree: AST):
-        if parent_ast.has_statement_between_ast(stmt.ForLoopStatement, tree.id):
-            tree(stmt.ContinueStatement())
-        else:
-            # same ast because of a single value, we can't use continue
-            # however, we use pass as it's a single-level if/else -- the else part
-            # will handle the instance generation if there is no missing value.
-            tree(stmt.NoStatement())
-
     ast = PathAccessor(program).iterate_elements(
         parent_ast,
         classplan.subject.attr,
@@ -203,7 +193,11 @@ def gen_classplan_executor(
         None,
         validate_path=debuginfo,
         on_missing_key=(
-            on_missing_key if classplan.subject.attr.path.has_optional_steps() else None
+            lambda tree: (
+                PathAccessor.skip_on_missing_key(parent_ast, tree)
+                if classplan.subject.attr.path.has_optional_steps()
+                else None
+            )
         ),
     )
     is_subj_blank = isinstance(classplan.subject, BlankSubject)

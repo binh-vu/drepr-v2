@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Preprocessing function support optional path
+
 ## [1.3.11] - 2024-05-22
 
 ### Fixed

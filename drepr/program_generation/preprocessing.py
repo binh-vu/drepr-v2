@@ -171,7 +171,16 @@ class GenPreprocessing:
                 value_type=ValueType.UnspecifiedSingle,
             )
             ast = PathAccessor(self.program).iterate_elements(
-                ast=prepro_fn, attr=pseudo_attr, on_step_callback=on_step_callback
+                ast=prepro_fn,
+                attr=pseudo_attr,
+                on_step_callback=on_step_callback,
+                on_missing_key=(
+                    lambda tree: (
+                        PathAccessor.skip_on_missing_key(prepro_fn, tree)
+                        if pseudo_attr.path.has_optional_steps()
+                        else None
+                    )
+                ),
             )
 
             # get item value & item context
