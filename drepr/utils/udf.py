@@ -72,7 +72,15 @@ class UDFParser:
 
         if isinstance(
             tree,
-            (ast.Expr, ast.Return, ast.Yield, ast.YieldFrom, ast.Assign, ast.Assert),
+            (
+                ast.Expr,
+                ast.Return,
+                ast.Yield,
+                ast.YieldFrom,
+                ast.Assign,
+                ast.Assert,
+                ast.AugAssign,
+            ),
         ):
             return [SourceTree(self._get_node_code(tree), [])]
 
