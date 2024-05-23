@@ -52,11 +52,12 @@ class DRepr:
     @staticmethod
     def parse(raw: dict) -> "DRepr":
         Validator.must_have(raw, "version", "Parsing D-REPR configuration")
-        if str(raw["version"]) == "1":
+        raw["version"] = str(raw["version"])
+        if raw["version"] == "1":
             model = ReprV1Parser.parse(raw)
             model.is_valid()
             return model
-        elif str(raw["version"]) == "2":
+        elif raw["version"] == "2":
             model = ReprV2Parser.parse(raw)
             model.is_valid()
             return model
