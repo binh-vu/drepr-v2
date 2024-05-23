@@ -4,8 +4,6 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Optional
 
-from graph.retworkx import RetworkXStrDiGraph
-
 from drepr.models.align import AlignedStep, AutoAlignment
 from drepr.models.attr import Attr
 from drepr.models.path import IndexExpr, RangeExpr, SetIndexExpr
@@ -18,6 +16,7 @@ from drepr.models.prelude import (
     RangeAlignment,
     ValueAlignment,
 )
+from graph.retworkx import RetworkXStrDiGraph
 
 
 @dataclass
@@ -192,15 +191,15 @@ class DReprModelAlignments:
                     if not self.desc.get_attr_by_id(subj).path.has_optional_steps()
                 ]
 
-            # check if we have subject with missing path, but the missing path is the same for all attrs
+            # check if we have subject with missing path, but the missing path is the same or less restricted for all attrs
             filtered_subjs = []
 
             for subj_id in subjs:
                 subj = self.desc.get_attr_by_id(subj_id)
 
-                # now we need to check if this subject has the same missing path to all attrs.
+                # now we need to check if this subject has the same or less restricted missing path to all attrs.
                 if all(
-                    subj.path.share_same_optional_steps(
+                    subj.path.has_same_or_less_optional_steps(
                         self.desc.get_attr_by_id(ai).path
                     )
                     for ai in attrs

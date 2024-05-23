@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.11] - 2024-05-22
+
+### Fixed
+
+- Subject Inference: allow choosing a less restricted optional path [#4](https://github.com/binh-vu/drepr-v2/issues/4)
+
 ## [1.3.10] - 2024-05-22
 
 ### Fixed

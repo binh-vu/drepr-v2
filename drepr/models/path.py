@@ -117,20 +117,24 @@ class Path:
             if isinstance(s, IndexExpr) and s.is_optional
         ]
 
-    def share_same_optional_steps(self, path: Path) -> bool:
-        """Check if another path has the same optional steps as this path.
+    def has_same_or_less_optional_steps(self, path: Path) -> bool:
+        """Check if another path has the same or less optional steps as this path.
 
         In order for two paths to share the same optional steps, any previous steps of the optional step must be the same
         and the number of optional steps must be the same.
+
+        In order for this path to have less optional steps than the other path, the number of optional steps must be less
+        and the previous steps of the optional steps must be the same.
         """
         self_opt_steps = self.get_optional_steps()
         path_opt_steps = path.get_optional_steps()
 
-        if self_opt_steps != path_opt_steps:
+        if self_opt_steps != path_opt_steps[: len(self_opt_steps)]:
             return False
 
         return (
-            self.steps[: self_opt_steps[-1] + 1] == path.steps[: path_opt_steps[-1] + 1]
+            self.steps[: self_opt_steps[-1] + 1]
+            == path.steps[: path_opt_steps[len(self_opt_steps) - 1] + 1]
         )
 
     def get_nary_steps(self) -> list[int]:
