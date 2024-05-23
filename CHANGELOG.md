@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.9] - 2024-05-22
+
+### Fixed
+
+- The version field now accepts a number
+
 ## [1.3.8] - 2024-05-14
 
 ### Changed
