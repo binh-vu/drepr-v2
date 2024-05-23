@@ -77,7 +77,7 @@ class UDFParser:
             return [SourceTree(self._get_node_code(tree), [])]
 
         if isinstance(tree, ast.If):
-            content = f"if {self._get_node_code(tree.test)}"
+            content = f"if {self._get_node_code(tree.test)}:"
             out = [SourceTree(content, [])]
             for stmt in tree.body:
                 out[0].children.extend(self._parse_ast(stmt, imports))
@@ -88,7 +88,7 @@ class UDFParser:
             return out
 
         if isinstance(tree, ast.For):
-            content = f"for {self._get_node_code(tree.target)}{self._get_node_code(tree.iter)}"
+            content = f"for {self._get_node_code(tree.target)} in {self._get_node_code(tree.iter)}:"
             out = [SourceTree(content, [])]
             for stmt in tree.body:
                 out[0].children.extend(self._parse_ast(stmt, imports))
@@ -130,10 +130,22 @@ class UDFParser:
                     out[-1].children.extend(self._parse_ast(stmt, imports))
             return out
 
+        if isinstance(tree, ast.FunctionDef):
+            fnargs = ", ".join([self._get_node_code(arg) for arg in tree.args.args])
+            if tree.returns is not None:
+                returns = f" -> {self._get_node_code(tree.returns)}"
+            else:
+                returns = ""
+            out = [SourceTree(f"def {tree.name}({fnargs}){returns}:", [])]
+            for stmt in tree.body:
+                out[0].children.extend(self._parse_ast(stmt, imports))
+            return out
         raise NotImplementedError(type(tree))
 
     def _get_node_code(self, node: ast.AST) -> str:
         lines = self.source_code_lines[node.lineno - 1 : node.end_lineno]
+        if len(lines) == 1:
+            return lines[0][node.col_offset : node.end_col_offset]
         lines[0] = lines[0][node.col_offset :]
         lines[-1] = lines[-1][: node.end_col_offset]
         return "\n".join(lines)

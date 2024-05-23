@@ -5,6 +5,7 @@
 ### Fixed
 
 - Preprocessing function support optional path
+- Support function defined inside UDF
 
 ## [1.3.11] - 2024-05-22
 

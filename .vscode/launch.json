@@ -65,7 +65,7 @@
                 "-sxvvv",
                 "tests",
                 "-k",
-                "test_norm_prefix_space"
+                "test_udf_parser"
             ]
         }
     ]

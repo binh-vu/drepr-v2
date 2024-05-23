@@ -59,7 +59,7 @@ def udf_test_cases(resource_dir: Path) -> list[UDFTestCase]:
     return testcases
 
 
-def test_norm_prefix_space(udf_test_cases: list[UDFTestCase]):
+def test_udf_parser(udf_test_cases: list[UDFTestCase]):
     # print(">>>")
     for testcase in udf_test_cases:
         # print(testcase.code)

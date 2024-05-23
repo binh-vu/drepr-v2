@@ -70,3 +70,45 @@ for_loop:
           children:
             - value[i]['normalized_uri'] = ""
     - return value
+func_def1:
+  code: |+
+    def func1(value):
+      print(value)
+      return value
+  norm:
+    - node: "def func1(value):"
+      children:
+        - print(value)
+        - return value
+func_def2:
+  code: |+
+    def func2(value1, value2):
+      return value1 + value2
+  norm:
+    - node: "def func2(value1, value2):"
+      children:
+        - return value1 + value2
+func_def3:
+  code: |+
+    def func3(value1: int, value2: str) -> str:
+      return str(value1) + value2
+  norm:
+    - node: "def func3(value1: int, value2: str) -> str:"
+      children:
+        - return str(value1) + value2
+func_def4:
+  code: |+
+    def func3(
+      value1: int, 
+      value2: int | str
+    ) -> str:
+      if isinstance(value2, int):
+        return value1 + value2
+      return str(value1) + value2
+  norm:
+    - node: "def func3(value1: int, value2: int | str) -> str:"
+      children:
+        - node: "if isinstance(value2, int):"
+          children:
+            - return value1 + value2
+        - return str(value1) + value2
