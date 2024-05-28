@@ -1,11 +1,11 @@
 # Changelog
 
-## [Unreleased]
+## [1.3.12] - 2024-05-28
 
 ### Fixed
 
 - Preprocessing function support optional path
-- Support function defined inside UDF
+- Support `+=` expression and function defined inside UDF
 
 ## [1.3.11] - 2024-05-22
 
