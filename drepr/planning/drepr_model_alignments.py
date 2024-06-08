@@ -48,6 +48,7 @@ class DReprModelAlignments:
                         if (
                             source.id == target.id
                             or len(aligns[source.id, target.id]) > 0
+                            or source.resource_id != target.resource_id
                         ):
                             continue
 
