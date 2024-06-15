@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.13] - 2024-06-15
+
+### Fixed
+
+- Fix auto alignments should only be applied to attributes that from or derived from the same resource
+
 ## [1.3.12] - 2024-05-28
 
 ### Fixed

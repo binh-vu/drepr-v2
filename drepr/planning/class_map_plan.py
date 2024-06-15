@@ -163,8 +163,10 @@ class ClassesMapExecutionPlan:
             if not pre.is_output_new_data():
                 continue
 
-            attr = pre.get_new_data_attribute("")
-            newresource = Resource.create_preprocessing_output(attr.id)
+            attr = pre.get_new_data_attribute(pre.get_resource_id())
+            newresource = Resource.create_preprocessing_output(
+                attr.resource_id, attr.id
+            )
             attr.resource_id = newresource.id
 
             assert not desc.has_attr(

@@ -83,7 +83,9 @@ class GenPreprocessing:
             )
             # call preprocessing fn in the main program and assign if needed
             if value.output is not None:
-                prepro_resource_id = Resource.get_preprocessing_output_id(value.output)
+                prepro_resource_id = Resource.get_preprocessing_output_id(
+                    value.resource_id, value.output
+                )
                 self.call_preproc_ast.assign(
                     DeferredVar(
                         name=f"resource_data_{prepro_resource_id}",
@@ -100,7 +102,9 @@ class GenPreprocessing:
     def _generate_preprocessing_pmap(self, prepro_id: int, prepro_fn: AST, value: PMap):
         if not value.change_structure:
             if value.output is not None:
-                prepro_resource_id = Resource.get_preprocessing_output_id(value.output)
+                prepro_resource_id = Resource.get_preprocessing_output_id(
+                    value.resource_id, value.output
+                )
                 # create a variable to store the preprocess results
                 output_attr_id = value.output
                 output_attr = DeferredVar(

@@ -48,9 +48,21 @@ class DReprModelAlignments:
                         if (
                             source.id == target.id
                             or len(aligns[source.id, target.id]) > 0
-                            or source.resource_id != target.resource_id
                         ):
                             continue
+
+                        if source.resource_id != target.resource_id:
+                            # check if source & target is derived from the same resource
+                            source_resource = desc.get_resource_by_id(
+                                source.resource_id
+                            )
+                            assert source_resource is not None
+                            if not (
+                                source_resource.is_preprocessing_output()
+                                and source_resource.get_preprocessing_original_resource_id()
+                                == target.resource_id
+                            ):
+                                continue
 
                         new_align = DReprModelAlignments.auto_align(source, target)
                         if new_align is not None:

@@ -117,6 +117,22 @@ class Preprocessing:
             missing_values=[None],
         )
 
+    def get_resource_id(self):
+        if self.type == PreprocessingType.pmap:
+            assert isinstance(self.value, PMap)
+            return self.value.resource_id
+        elif self.type == PreprocessingType.pfilter:
+            assert isinstance(self.value, PFilter)
+            return self.value.resource_id
+        elif self.type == PreprocessingType.psplit:
+            assert isinstance(self.value, PSplit)
+            return self.value.resource_id
+        elif self.type == PreprocessingType.rmap:
+            assert isinstance(self.value, RMap)
+            return self.value.resource_id
+        else:
+            raise NotImplementedError()
+
 
 class Context:
     """A special instance that is accessible when user defined function is called to allow access to
