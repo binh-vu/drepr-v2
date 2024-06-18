@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.14] - 2024-06-18
+
+### Changed
+
+- Allow class id in Semantic Model to contain `_`
+
 ## [1.3.13] - 2024-06-15
 
 ### Fixed
