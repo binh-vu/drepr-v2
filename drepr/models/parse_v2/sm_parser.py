@@ -45,7 +45,7 @@ class SMParser:
         "inverse_static_properties",
     }
 
-    REG_SM_CLASS = re.compile(r"^((.+):[a-zA-Z0-9]+)$")
+    REG_SM_CLASS = re.compile(r"^((.+):[a-zA-Z0-9_]+)$")
     REG_SM_DNODE = re.compile(r"^((?:(?!--).)+:\d+)--((?:(?!\^\^).)+)(?:\^\^(.+))?$")
     REG_SM_LNODE = re.compile(
         r"^((?:(?!--).)+:\d+)--((?:(?!--).)+)--((?:(?!\^\^).)+)(?:\^\^(.+))?$"
@@ -86,7 +86,7 @@ class SMParser:
                 class_name = m.group(2)
             except Exception as e:
                 raise InputError(
-                    f"{trace0}\nERROR: invalid class_id `{class_id}`. Expect to be <string>:<alphanumeric>"
+                    f"{trace0}\nERROR: invalid class_id `{class_id}`. Expect to be <string>:<alphanumeric & _>"
                 )
 
             nodes[class_id] = ClassNode(class_id, class_name)
