@@ -3,8 +3,8 @@ from enum import Enum
 from typing import Optional, Union
 
 from drepr.models.attr import Attr
-
-from .path import Path
+from drepr.models.path import Path
+from drepr.models.resource import Resource
 
 
 @dataclass
@@ -110,6 +110,7 @@ class Preprocessing:
         else:
             raise NotImplementedError()
 
+        resource_id = Resource.get_preprocessing_output_id(resource_id, attr_id)
         return Attr(
             id=attr_id,
             resource_id=resource_id,

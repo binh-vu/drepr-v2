@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Union, cast
 
 import pytest
 import serde.yaml
 
+from drepr.utils.misc import assert_isinstance
 from drepr.utils.udf import SourceTree, UDFParsedResult, UDFParser
 
 
@@ -35,7 +37,7 @@ class UDFTestCase:
 
 @pytest.fixture
 def udf_test_cases(resource_dir: Path) -> list[UDFTestCase]:
-    def recover_newline(code: list | dict):
+    def recover_newline(code: list | dict | str):
         if isinstance(code, list):
             return [recover_newline(c) for c in code]
         if isinstance(code, dict):
@@ -53,7 +55,9 @@ def udf_test_cases(resource_dir: Path) -> list[UDFTestCase]:
                         code=testcase["code"],
                         imports=testcase.get("imports", []),
                         monitor_vars=testcase.get("monitor_vars", {}),
-                        norm_code=recover_newline(testcase["norm"]),
+                        norm_code=cast(
+                            Union[list, dict], recover_newline(testcase["norm"])
+                        ),
                     )
                 )
     return testcases

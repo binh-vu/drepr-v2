@@ -10,9 +10,7 @@ from typing import Any, Optional, Union
 import orjson
 from ruamel.yaml import YAML
 
-from drepr.utils.validator import InputError, Validator
-
-from .align import (
+from drepr.models.align import (
     AlignedStep,
     Alignment,
     AlignmentType,
@@ -21,12 +19,13 @@ from .align import (
     RangeAlignment,
     ValueAlignment,
 )
-from .attr import Attr
-from .parse_v1 import ReprV1Parser
-from .parse_v2 import ReprV2Parser
-from .preprocessing import PFilter, PMap, Preprocessing, PSplit, RMap
-from .resource import CSVProp, Resource
-from .sm import ClassNode, DataNode, LiteralNode, SemanticModel
+from drepr.models.attr import Attr
+from drepr.models.parsers.v1 import ReprV1Parser
+from drepr.models.parsers.v2 import ReprV2Parser
+from drepr.models.preprocessing import PFilter, PMap, Preprocessing, PSplit, RMap
+from drepr.models.resource import CSVProp, Resource
+from drepr.models.sm import ClassNode, DataNode, LiteralNode, SemanticModel
+from drepr.utils.validator import InputError, Validator
 
 yaml = YAML()
 yaml.Representer.add_representer(OrderedDict, yaml.Representer.represent_dict)

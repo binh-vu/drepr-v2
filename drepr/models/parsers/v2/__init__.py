@@ -4,19 +4,18 @@ from collections import defaultdict
 from dataclasses import asdict
 from typing import TYPE_CHECKING, List
 
-from drepr.models.parse_v2.path_parser import PathParserV2
+from drepr.models.align import AlignmentType, RangeAlignment
+from drepr.models.parsers.v1.align_parser import AlignParser
+from drepr.models.parsers.v1.attr_parser import AttrParser, ParsedAttrs
+from drepr.models.parsers.v1.preprocessing_parser import PreprocessingParser
+from drepr.models.parsers.v1.resource_parser import ResourceParser
+from drepr.models.parsers.v2.path_parser import PathParserV2
+from drepr.models.parsers.v2.sm_parser import SMParser
+from drepr.models.sm import ClassNode, DataNode, LiteralNode, SemanticModel
 from drepr.utils.validator import *
 
-from ..align import AlignmentType, RangeAlignment
-from ..parse_v1.align_parser import AlignParser
-from ..parse_v1.attr_parser import AttrParser
-from ..parse_v1.preprocessing_parser import PreprocessingParser
-from ..parse_v1.resource_parser import ResourceParser
-from ..sm import ClassNode, DataNode, LiteralNode, SemanticModel
-from .sm_parser import SMParser
-
 if TYPE_CHECKING:
-    from ..drepr import DRepr
+    from drepr.models.drepr import DRepr
 
 
 class ReprV2Parser:
@@ -40,7 +39,7 @@ class ReprV2Parser:
 
     @classmethod
     def parse(cls, raw: dict):
-        from ..drepr import DRepr
+        from drepr.models.drepr import DRepr
 
         Validator.must_be_subset(
             cls.TOP_KEYWORDS,
@@ -56,6 +55,7 @@ class ReprV2Parser:
             raw["version"], "2", "Parsing D-REPR configuration version"
         )
         resources = ResourceParser.parse(raw["resources"])
+        attrs = ParsedAttrs()
 
         if len(resources) == 1:
             default_resource_id = resources[0].id
@@ -64,20 +64,19 @@ class ReprV2Parser:
 
         path_parser = PathParserV2()
         preprocessing = PreprocessingParser(path_parser).parse(
-            default_resource_id, resources, raw.get("preprocessing", [])
+            default_resource_id, resources, attrs, raw.get("preprocessing", [])
         )
-        attrs = AttrParser(path_parser).parse(
-            default_resource_id, resources, raw["attributes"]
+        AttrParser(path_parser).parse(
+            default_resource_id, resources, attrs, raw["attributes"]
         )
         aligns = AlignParser.parse(raw.get("alignments", []))
 
         if "semantic_model" in raw:
             sm = SMParser.parse(raw["semantic_model"])
-            sm.prefixes.update(SemanticModel.get_default_prefixes())
         else:
-            sm = None
+            sm = SemanticModel.get_default(attrs.attrs)
 
-        return DRepr(resources, preprocessing, attrs, aligns, sm)
+        return DRepr(resources, preprocessing, attrs.attrs, aligns, sm)
 
     @classmethod
     def dump(cls, drepr: "DRepr", simplify: bool = True, use_json_path: bool = False):

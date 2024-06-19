@@ -1,12 +1,19 @@
 from collections import defaultdict
 from typing import List, Optional, Union
 
-from .align import Alignment
-from .attr import Attr
-from .drepr import DRepr
-from .preprocessing import Preprocessing
-from .resource import Resource
-from .sm import SemanticModel, DataType, DataNode, Edge, LiteralNode, ClassNode
+from drepr.models.align import Alignment
+from drepr.models.attr import Attr
+from drepr.models.drepr import DRepr
+from drepr.models.preprocessing import Preprocessing
+from drepr.models.resource import Resource
+from drepr.models.sm import (
+    ClassNode,
+    DataNode,
+    DataType,
+    Edge,
+    LiteralNode,
+    SemanticModel,
+)
 
 
 class DReprBuilder:
@@ -17,23 +24,23 @@ class DReprBuilder:
         self.aligns: List[Alignment] = []
         self.sm: SemanticModel = SemanticModel({}, [], {})
 
-    def add_resource(self, resource: Resource) -> 'DReprBuilder':
+    def add_resource(self, resource: Resource) -> "DReprBuilder":
         self.resources.append(resource)
         return self
 
-    def add_preprocessing(self, preprocessing: Preprocessing) -> 'DReprBuilder':
+    def add_preprocessing(self, preprocessing: Preprocessing) -> "DReprBuilder":
         self.preprocessing.append(preprocessing)
         return self
 
-    def add_attribute(self, attr: Attr) -> 'DReprBuilder':
+    def add_attribute(self, attr: Attr) -> "DReprBuilder":
         self.attrs.append(attr)
         return self
 
-    def add_alignment(self, align: Alignment) -> 'DReprBuilder':
+    def add_alignment(self, align: Alignment) -> "DReprBuilder":
         self.aligns.append(align)
         return self
 
-    def add_sm(self) -> 'SMBuilder':
+    def add_sm(self) -> "SMBuilder":
         return SemanticModelBuilder(self)
 
     def build(self) -> DRepr:
@@ -50,7 +57,7 @@ class SemanticModelBuilder:
         self.sm.prefixes[prefix] = uri
         return self
 
-    def add_class(self, class_name: str) -> 'ClassBuilder':
+    def add_class(self, class_name: str) -> "ClassBuilder":
         self.class_nodes[class_name] += 1
         class_id = f"{class_name}:{self.class_nodes[class_name]}"
         self.sm.nodes[class_id] = ClassNode(class_id, class_name)
@@ -69,14 +76,27 @@ class ClassBuilder:
         self.sm_builder = sm_builder
         self.class_id = class_id
 
-    def add_data_node(self, predicate: str, attr_id: str, dtype: Optional[DataType] = None, is_subject: bool = False):
+    def add_data_node(
+        self,
+        predicate: str,
+        attr_id: str,
+        dtype: Optional[DataType] = None,
+        is_subject: bool = False,
+    ):
         node_id = f"dnode:{attr_id}"
         assert node_id not in self.sm_builder.sm.nodes
         self.sm_builder.sm.nodes[node_id] = DataNode(node_id, attr_id, dtype)
-        self.sm_builder.sm.edges.append(Edge(self.class_id, node_id, predicate, is_subject))
+        self.sm_builder.sm.edges.append(
+            Edge(self.class_id, node_id, predicate, is_subject)
+        )
         return self
 
-    def add_literal_node(self, predicate: str, val: Union[str, int, float], dtype: Optional[DataType] = None):
+    def add_literal_node(
+        self,
+        predicate: str,
+        val: Union[str, int, float],
+        dtype: Optional[DataType] = None,
+    ):
         node_id = f"lnode:{len(self.sm_builder.sm.nodes)}"
         self.sm_builder.sm.nodes[node_id] = LiteralNode(node_id, val, dtype)
         self.sm_builder.sm.edges.append(Edge(self.class_id, node_id, predicate))
@@ -84,7 +104,9 @@ class ClassBuilder:
 
     def add_class(self, predicate: str, class_name: str):
         child_cls_builder = self.sm_builder.add_class(class_name)
-        self.sm_builder.sm.edges.append(Edge(self.class_id, child_cls_builder.class_id, predicate))
+        self.sm_builder.sm.edges.append(
+            Edge(self.class_id, child_cls_builder.class_id, predicate)
+        )
         return child_cls_builder
 
     def finish(self) -> SemanticModelBuilder:

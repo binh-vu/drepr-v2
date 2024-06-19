@@ -1,11 +1,7 @@
 import copy
 import re
 
-from drepr.utils.misc import F, get_abs_iri
-from drepr.utils.namespace_mixin import NamespaceMixin
-from drepr.utils.validator import InputError, Validator
-
-from ..sm import (
+from drepr.models.sm import (
     DREPR_URI,
     ClassNode,
     DataNode,
@@ -15,6 +11,9 @@ from ..sm import (
     PredefinedDataType,
     SemanticModel,
 )
+from drepr.utils.misc import F, get_abs_iri
+from drepr.utils.namespace_mixin import NamespaceMixin
+from drepr.utils.validator import InputError, Validator
 
 
 class SMParser:
@@ -226,15 +225,6 @@ class SMParser:
             if "subject" in class_conf:
                 trace1 = f"{trace0}\nParsing subject"
                 attr_id = class_conf["subject"]
-                target_id = f"dnode:{attr_id}"
-                for edge in edges.values():
-                    if edge.source_id == class_id and edge.target_id == target_id:
-                        edge.is_subject = True
-                        break
-                else:
-                    raise InputError(
-                        f"{trace1}\nERROR: Subject of the class node must be one "
-                        f"of the attributes used in the semantic model"
-                    )
+                nodes[class_id].subject = attr_id
 
         return SemanticModel(nodes, edges, prefixes)

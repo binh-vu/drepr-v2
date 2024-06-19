@@ -1,8 +1,14 @@
 import re
 
+from drepr.models.sm import (
+    ClassNode,
+    DataNode,
+    DataType,
+    Edge,
+    LiteralNode,
+    SemanticModel,
+)
 from drepr.utils.validator import InputError, Validator
-
-from ..sm import ClassNode, DataNode, DataType, Edge, LiteralNode, SemanticModel
 
 
 class SMParser:
@@ -173,10 +179,6 @@ class SMParser:
                 Validator.must_be_str(
                     attr_id, f"{trace0}\nParsing subject of class {class_id}"
                 )
-                target_id = f"dnode:{attr_id}"
-                for edge in edges.values():
-                    if edge.source_id == class_id and edge.target_id == target_id:
-                        edge.is_subject = True
-                        break
+                nodes[class_id].subject = attr_id
 
         return SemanticModel(nodes, edges, prefixes)

@@ -4,10 +4,10 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Optional, Union
 
-from .attr import AttrId
+from drepr.models.attr import AttrId
 
 if TYPE_CHECKING:
-    from .drepr import DRepr
+    from drepr.models.drepr import DRepr
 
 
 @dataclass

@@ -4,8 +4,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Optional, TypeAlias, Union
 
-from .path import Path
-from .resource import ResourceId
+from drepr.models.path import Path
+from drepr.models.resource import ResourceId
 
 
 class Sorted(Enum):

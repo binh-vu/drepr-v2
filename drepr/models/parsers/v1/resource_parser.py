@@ -1,8 +1,7 @@
 from typing import List
 
-from drepr.utils.validator import Validator, InputError
-
-from ..resource import *
+from drepr.models.resource import *
+from drepr.utils.validator import InputError, Validator
 
 
 class ResourceParser:
@@ -25,6 +24,7 @@ class ResourceParser:
                 # .. other attributes ..
             ```
     """
+
     DEFAULT_RESOURCE_ID = "default"
     RESOURCE_TYPES = {rtype.value for rtype in ResourceType}
 
@@ -37,11 +37,16 @@ class ResourceParser:
             return cls._parse_schema2(resources)
 
         raise InputError(
-            f"Invalid type for `resources`, expect either a string or a dictionary. Get {type(resources)} instead")
+            f"Invalid type for `resources`, expect either a string or a dictionary. Get {type(resources)} instead"
+        )
 
     @classmethod
     def _parse_schema1(cls, resource_type: str) -> List[Resource]:
-        Validator.must_in(resource_type, cls.RESOURCE_TYPES, error_msg="Invalid resource type for `resources`")
+        Validator.must_in(
+            resource_type,
+            cls.RESOURCE_TYPES,
+            error_msg="Invalid resource type for `resources`",
+        )
         resource_type = ResourceType(resource_type)
         if resource_type == ResourceType.CSV:
             resource_prop = CSVProp()
@@ -61,16 +66,22 @@ class ResourceParser:
                 resource.id = resource_id
             elif isinstance(conf, dict):
                 Validator.must_have(conf, "type", trace)
-                Validator.must_in(conf['type'], cls.RESOURCE_TYPES, f"{trace}\n\tParsing resource type")
-                resource_type = ResourceType(conf['type'])
+                Validator.must_in(
+                    conf["type"],
+                    cls.RESOURCE_TYPES,
+                    f"{trace}\n\tParsing resource type",
+                )
+                resource_type = ResourceType(conf["type"])
 
                 if resource_type == ResourceType.CSV:
-                    if 'delimiter' in conf:
-                        if len(conf['delimiter']) != 1:
-                            raise InputError(f"{trace}.\nERROR: Expect one character delimiter "
-                                             f"for CSV resource. Get `{conf['delimiter']}` instead")
+                    if "delimiter" in conf:
+                        if len(conf["delimiter"]) != 1:
+                            raise InputError(
+                                f"{trace}.\nERROR: Expect one character delimiter "
+                                f"for CSV resource. Get `{conf['delimiter']}` instead"
+                            )
 
-                        resource_prop = CSVProp(conf['delimiter'])
+                        resource_prop = CSVProp(conf["delimiter"])
                     else:
                         resource_prop = CSVProp()
                 else:
@@ -78,8 +89,10 @@ class ResourceParser:
 
                 resource = Resource(resource_id, resource_type, resource_prop)
             else:
-                raise InputError(f"{trace}.\nERROR: The configuration of a resource can either be string "
-                                 f"or dictionary. Get {type(conf)} instead")
+                raise InputError(
+                    f"{trace}.\nERROR: The configuration of a resource can either be string "
+                    f"or dictionary. Get {type(conf)} instead"
+                )
 
             result.append(resource)
         return result

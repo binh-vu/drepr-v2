@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import functools
-from typing import Callable, Optional, Sequence, TypeVar, Union
+from typing import Any, Callable, Optional, Sequence, TypeVar, Union
 
 import orjson
 
@@ -17,6 +17,11 @@ def assert_not_null(x: Optional[V]) -> V:
 def assert_true(x: bool, msg: str) -> bool:
     assert x, msg
     return True
+
+
+def assert_isinstance(x: Any, cls: type[V]) -> V:
+    assert isinstance(x, cls)
+    return x
 
 
 class CacheMethod:

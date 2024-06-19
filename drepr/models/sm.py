@@ -7,9 +7,8 @@ from typing import Any, NamedTuple, Optional, TypeAlias, Union
 
 from rdflib import OWL, RDF, RDFS, XSD
 
+from drepr.models.attr import Attr, AttrId
 from drepr.utils.namespace_mixin import NamespaceMixin
-
-from .attr import Attr, AttrId
 
 DREPR_URI = "https://purl.org/drepr/1.0/uri"
 DREPR_BLANK = "https://purl.org/drepr/1.0/blank"
@@ -69,6 +68,7 @@ class PredefinedDataType(Enum):
 class ClassNode:
     node_id: NodeId
     label: str  # relative iri
+    subject: Optional[AttrId] = None
 
     def get_abs_iri(self, sm: SemanticModel):
         """Get the absolute IRI of this node"""
@@ -273,7 +273,7 @@ class SemanticModel(NamespaceMixin):
             )
 
     def get_edges_between_nodes(self, source_id: str, target_id: str):
-        matched_edges = []
+        matched_edges: list[Edge] = []
         for e in self.edges.values():
             if e.source_id == source_id and e.target_id == target_id:
                 matched_edges.append(e)

@@ -3,11 +3,10 @@ from abc import ABC, abstractmethod
 from copy import copy
 from typing import List, Optional, Union
 
-from drepr.models.parse_v1.path_parser import PathParser
+from drepr.models.parsers.interface import PathParser
+from drepr.models.path import Expr, IndexExpr, Path, RangeExpr, WildcardExpr
+from drepr.models.resource import Resource, ResourceType
 from drepr.utils.validator import InputError
-
-from ..path import Expr, IndexExpr, Path, RangeExpr, WildcardExpr
-from ..resource import Resource, ResourceType
 
 
 class PathParserV2(PathParser):
@@ -44,7 +43,7 @@ class PathParserV2(PathParser):
 
     # noinspection PyMethodMayBeStatic
     def letter2index(self, letter: str) -> int:
-        letter = list(letter.lower())
+        letter = letter.lower()
         n_chars = ord("z") - ord("a") + 1
         index = 0
         for i, c in enumerate(reversed(letter)):

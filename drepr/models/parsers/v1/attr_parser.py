@@ -1,10 +1,30 @@
+from dataclasses import dataclass, field
+from email.policy import default
 from typing import List
 
+from drepr.models.attr import Attr, Sorted, ValueType
+from drepr.models.parsers.interface import PathParser
+from drepr.models.resource import Resource
 from drepr.utils.validator import InputError, Validator
 
-from ..attr import Attr, Sorted, ValueType
-from ..resource import Resource
-from .path_parser import PathParser
+
+@dataclass
+class ParsedAttrs:
+    attrs: list[Attr] = field(default_factory=list)
+    id2attr: dict[str, Attr] = field(default_factory=dict)
+
+    def add(self, attr: Attr):
+        if attr.id in self.attrs:
+            raise InputError(f"Duplicated attribute id: {attr.id}")
+
+        self.attrs.append(attr)
+        self.id2attr[attr.id] = attr
+
+    def __contains__(self, id: str):
+        return id in self.id2attr
+
+    def __getitem__(self, id: str):
+        return self.id2attr[id]
 
 
 class AttrParser:
@@ -29,17 +49,31 @@ class AttrParser:
 
     SORTED_VALUES = {x.value for x in Sorted}
     VALUE_TYPE_VALUES = {x.value for x in ValueType}
+    CLS_KEYS = {
+        "resource_id",
+        "path",
+        "unique",
+        "sorted",
+        "value_type",
+        "missing_values",
+    }
 
     def __init__(self, path_parser: PathParser):
         self.path_parser = path_parser
 
     def parse(
-        self, default_resource_id: str, resources: List[Resource], attrs: dict
-    ) -> List[Attr]:
-        Validator.must_be_dict(attrs, "Parsing attributes")
-        result = []
-        for attr_id, attr_conf in attrs.items():
+        self,
+        default_resource_id: str,
+        resources: List[Resource],
+        parsed_attrs: ParsedAttrs,
+        def_attrs: dict,
+    ):
+        Validator.must_be_dict(def_attrs, "Parsing attributes")
+        for attr_id, attr_conf in def_attrs.items():
             trace = f"Parsing attribute: {attr_id}"
+
+            if attr_id in parsed_attrs:
+                raise InputError(f"{trace}\nERROR: Duplicated attribute id: {attr_id}")
 
             if isinstance(attr_conf, (str, list)):
                 attr_path = self.path_parser.parse(
@@ -51,7 +85,7 @@ class AttrParser:
                 )
                 attr = Attr(attr_id, default_resource_id, attr_path, [])
             elif isinstance(attr_conf, dict):
-                attr = self.parse_schema2(
+                attr = self.parse_expanded_def(
                     default_resource_id, resources, attr_id, attr_conf, trace
                 )
             else:
@@ -59,11 +93,10 @@ class AttrParser:
                     f"{trace}\nERROR: The configuration of an attribute can either be string, list, "
                     f"or dictionary. Get {type(attr_conf)} instead"
                 )
-            result.append(attr)
 
-        return result
+            parsed_attrs.add(attr)
 
-    def parse_schema2(
+    def parse_expanded_def(
         self,
         default_resource_id: str,
         resources: List[Resource],

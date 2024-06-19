@@ -405,12 +405,9 @@ class ClassMapPlan:
 
         # if the subject attribute is provided, then, we will use it.
         subjs = []
-        for u in data_nodes:
-            if any(
-                e.is_subject
-                for e in desc.sm.get_edges_between_nodes(class_id, u.node_id)
-            ):
-                subjs.append(u.attr_id)
+        classnode = desc.sm.get_class_node(class_id)
+        if classnode.subject is not None:
+            subjs.append(classnode.subject)
 
         if len(subjs) == 0:
             if len(attrs) == 0:
