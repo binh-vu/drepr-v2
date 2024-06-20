@@ -35,10 +35,10 @@
                 // "examples/pseudo_people/program/write_to_file.py",
                 // "--outfile",
                 // "examples/pseudo_people/output.ttl"
-                "examples/mineral_site/missing_values/model.yml",
-                "default=examples/mineral_site/missing_values/default.json",
-                "--progfile",
-                "examples/mineral_site/missing_values/program/write_to_str.py"
+                // "examples/mineral_site/missing_values/model.yml",
+                // "default=examples/mineral_site/missing_values/default.json",
+                // "--progfile",
+                // "examples/mineral_site/missing_values/program/write_to_str.py"
                 // "examples/mineral_system/misspath_autoalign/model.yml",
                 // "default=examples/mineral_system/misspath_autoalign/default.json",
                 // "--progfile",
@@ -53,7 +53,14 @@
                 // "--progfile",
                 // "temporary/program/write_to_str.py",
                 // "--debuginfo"
-            ]
+                "sources/zinc/Mudd-and-Jowitt-2017-Zinc.v3.yml",
+                "default=sources/zinc/Mudd-and-Jowitt-2017-Zinc.csv",
+                "--outfile",
+                "sources/zinc/output.ttl",
+                "--progfile",
+                "sources/zinc/program.py"
+            ],
+            "cwd": "/workspace/darpa-criticalmaas"
         },
         {
             "name": "pytest",

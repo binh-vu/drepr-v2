@@ -22,8 +22,9 @@ from drepr.models.align import (
 from drepr.models.attr import Attr
 from drepr.models.parsers.v1 import ReprV1Parser
 from drepr.models.parsers.v2 import ReprV2Parser
+from drepr.models.parsers.v3 import ReprV3Parser
 from drepr.models.preprocessing import PFilter, PMap, Preprocessing, PSplit, RMap
-from drepr.models.resource import CSVProp, Resource
+from drepr.models.resource import CSVProp, Resource, ResourceType
 from drepr.models.sm import ClassNode, DataNode, LiteralNode, SemanticModel
 from drepr.utils.validator import InputError, Validator
 
@@ -54,11 +55,15 @@ class DRepr:
         raw["version"] = str(raw["version"])
         if raw["version"] == "1":
             model = ReprV1Parser.parse(raw)
-            model.is_valid()
+            model.assert_valid()
             return model
         elif raw["version"] == "2":
             model = ReprV2Parser.parse(raw)
-            model.is_valid()
+            model.assert_valid()
+            return model
+        elif raw["version"] == "3":
+            model = ReprV3Parser.parse(raw)
+            model.assert_valid()
             return model
         raise InputError(f"Parsing error, get unknown version: {raw['version']}")
 
@@ -152,14 +157,16 @@ class DRepr:
 
         return obj
 
-    def is_valid(self):
+    def assert_valid(self):
         """
         Perform a check to see if this D-REPR is valid. Raise AssertionError if this is not valid
         """
         # CHECK 1: all references (resource id, attribute ids) are valid
         resource_ids = {r.id for r in self.resources}
         for r in self.resources:
-            assert not r.is_preprocessing_output(), (
+            assert not (
+                r.is_preprocessing_output() and r.type != ResourceType.Container
+            ), (
                 f"Resource {r.id} is detected as output of a preprocessing step. "
                 f"Please choose a different name"
             )

@@ -2,6 +2,7 @@ import copy
 import re
 from dataclasses import dataclass, field
 from typing import Any
+from uuid import uuid4
 
 from drepr.models.attr import Attr
 from drepr.models.parsers.v1.attr_parser import AttrParser, ParsedAttrs
@@ -34,6 +35,7 @@ class SMParser:
     ```
     semantic_model:
       <class_id>:
+        [id]: <class_id>
         [uri]: <uri>
         [properties]: <properties>
         [links]: <links>
@@ -46,6 +48,7 @@ class SMParser:
 
     where:
 
+    * <class_id>: (optional) is the id of the class. It can be specified via the key or as in a separate field named <id>
     * <uri> (optional): if not provided, we extract the URI from the class_id and the class id
     must have the following format: <prefix>:<name>:<alphanumeric & _> where <prefix>:<name> is
     used to create the URI.
@@ -102,6 +105,7 @@ class SMParser:
     """
 
     CLS_KEYS = {
+        "id",
         "uri",
         "properties",
         "subject",
@@ -121,8 +125,8 @@ class SMParser:
         self.attrs = attrs
 
     def parse(self, sm: dict) -> SemanticModel:
-        # shallow copy
-        sm = copy.copy(sm)
+        # deep copy
+        sm = copy.deepcopy(sm)
         prefixes = sm.pop("prefixes", {})
 
         trace0 = f"Parsing `prefixes` of the semantic model"
@@ -156,6 +160,13 @@ class SMParser:
         Validator.must_be_subset(
             self.CLS_KEYS, class_conf.keys(), "keys of ontology class", trace0
         )
+
+        if "id" in class_conf:
+            Validator.must_be_str(class_conf["id"], f"{trace0}\nParsing id")
+            if class_id != class_conf["id"]:
+                raise InputError(
+                    f"{trace0}\nERROR: `id` is different from the class id. Expect to be the same"
+                )
 
         if "uri" in class_conf:
             class_name = class_conf["uri"]
@@ -347,29 +358,34 @@ class SMParser:
                 )
 
             predicate, conf = prop
-            Validator.must_be_dict(conf, trace)
-            if "attr" in conf:
-                Validator.must_be_subset(
-                    {
-                        "attr",
-                        "data_type",
-                        "is_required",
-                    },
-                    conf.keys(),
-                    "keys of property",
-                    trace,
-                )
-                Validator.must_have(conf, "attr", f"{trace}\n`attr` is required")
-                attr = conf["attr"]
-                data_type = conf.get("data_type", None)
-                is_required = conf.get("is_required", False)
-            else:
-                Validator.must_be_subset(
-                    AttrParser.CLS_KEYS, conf.keys(), "keys of attribute", trace
-                )
+            if isinstance(conf, (str, list)):
                 attr = conf
                 data_type = None
                 is_required = False
+            else:
+                Validator.must_be_dict(conf, trace)
+                if "attr" in conf:
+                    Validator.must_be_subset(
+                        {
+                            "attr",
+                            "data_type",
+                            "is_required",
+                        },
+                        conf.keys(),
+                        "keys of property",
+                        trace,
+                    )
+                    Validator.must_have(conf, "attr", f"{trace}\n`attr` is required")
+                    attr = conf["attr"]
+                    data_type = conf.get("data_type", None)
+                    is_required = conf.get("is_required", False)
+                else:
+                    Validator.must_be_subset(
+                        AttrParser.CLS_KEYS, conf.keys(), "keys of attribute", trace
+                    )
+                    attr = conf
+                    data_type = None
+                    is_required = False
 
         if data_type is not None:
             Validator.must_be_str(data_type, f"{trace}\nParsing data type")
@@ -444,7 +460,7 @@ class SMParser:
         self,
         context: SMParseContext,
         class_id: str,
-        link: tuple | list,
+        link: tuple | list | dict,
         trace: str,
     ):
         """Parse a link of a class. Can parse the following format:
@@ -472,6 +488,22 @@ class SMParser:
                     f"{trace}\nERROR: Expect each value of `links` to be an array of two "
                     f"or three items (<predicate>, <target>[, is_required=false])"
                 )
+        elif isinstance(link, dict):
+            Validator.must_be_subset(
+                {
+                    "prop",
+                    "target",
+                    "is_required",
+                },
+                link.keys(),
+                "keys of link",
+                trace,
+            )
+            Validator.must_have(link, "prop", f"{trace}\n`prop` is required")
+            Validator.must_have(link, "target", f"{trace}\n`target` is required")
+            predicate = link["prop"]
+            target = link["target"]
+            is_required = link.get("is_required", False)
         else:
             if not isinstance(link, tuple):
                 raise InputError(
@@ -509,17 +541,24 @@ class SMParser:
 
         Validator.must_be_bool(is_required, f"{trace}\nParsing is_required")
 
-        if isinstance(target, str):
-            context.edges[len(context.edges)] = Edge(
-                len(context.edges),
-                class_id,
-                target,
-                predicate,
-                is_required=is_required,
-            )
+        if not isinstance(target, str):
+            Validator.must_be_dict(target, f"{trace}\nParsing target")
+            # construct the class on fly
+            if "id" in target:
+                target_class_id = target["id"]
+            else:
+                target_class_id = str(uuid4())
+
+            self.parse_class(context, target_class_id, target)
         else:
-            # construct the attribute on fly
-            raise NotImplementedError()
+            target_class_id = target
+        context.edges[len(context.edges)] = Edge(
+            len(context.edges),
+            class_id,
+            target_class_id,
+            predicate,
+            is_required=is_required,
+        )
 
     def create_attr_if_needed(self, attr: str | dict, trace: str):
         if isinstance(attr, str):
