@@ -8,11 +8,18 @@ from drepr.models.resource import Resource
 
 
 @dataclass
+class POutput:
+    resource_id: Optional[str]
+    attr: Optional[str]
+    attr_path: Optional[Path]
+
+
+@dataclass
 class PMap:
     resource_id: str
     path: Path
     code: str
-    output: Optional[str] = None
+    output: Optional[POutput] = None
     change_structure: Optional[bool] = None
 
 
@@ -21,7 +28,7 @@ class PFilter:
     resource_id: str
     path: Path
     code: str
-    output: Optional[str] = None
+    output: Optional[POutput] = None
 
 
 @dataclass
@@ -29,7 +36,7 @@ class PSplit:
     resource_id: str
     path: Path
     code: str
-    output: Optional[str] = None
+    output: Optional[POutput] = None
 
 
 class RMapFunc(Enum):
@@ -41,7 +48,7 @@ class RMap:
     resource_id: str
     path: Path
     func_id: RMapFunc
-    output: Optional[str] = None
+    output: Optional[POutput] = None
 
 
 class PreprocessingType(Enum):
@@ -54,7 +61,7 @@ class PreprocessingType(Enum):
 @dataclass
 class Preprocessing:
     type: PreprocessingType
-    value: Union[PMap, PFilter, RMap]
+    value: Union[PMap, PFilter, PSplit, RMap]
 
     @staticmethod
     def deserialize(raw: dict):
@@ -72,6 +79,17 @@ class Preprocessing:
             raise NotImplementedError()
 
         return Preprocessing(type, value)
+
+    def get_output(self) -> Optional[POutput]:
+        if self.type in (
+            PreprocessingType.pmap,
+            PreprocessingType.pfilter,
+            PreprocessingType.psplit,
+            PreprocessingType.rmap,
+        ):
+            return self.value.output
+        else:
+            raise NotImplementedError(self.type)
 
     def is_output_new_data(self) -> bool:
         """Check if the preprocessing will generate new data. The new data is stored in a new variable"""

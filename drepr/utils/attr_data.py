@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 import drepr.models.path as dpath
-from drepr.models.parse_v2.path_parser import PathParserV2
+from drepr.models.parsers.v2.path_parser import PathParserV2
 
 
 class Container:

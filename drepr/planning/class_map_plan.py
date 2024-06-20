@@ -154,15 +154,18 @@ class ClassesMapExecutionPlan:
 
     @classmethod
     def rewrite_desc_for_preprocessing_output(cls, desc: DRepr):
-        if all(not pre.is_output_new_data() for pre in desc.preprocessing):
+        if all(pre.get_output() is None for pre in desc.preprocessing):
             return desc
 
         desc = deepcopy(desc)
         assert all(not r.is_preprocessing_output() for r in desc.resources)
         for pre in desc.preprocessing:
-            if not pre.is_output_new_data():
+            pre_output = pre.get_output()
+            if pre_output is None:
                 continue
 
+            if pre_output.attr is None:
+                ...
             attr = pre.get_new_data_attribute(pre.get_resource_id())
             newresource = Resource.create_preprocessing_output(
                 attr.resource_id, attr.id

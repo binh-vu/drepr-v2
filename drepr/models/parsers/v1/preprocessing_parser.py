@@ -67,7 +67,6 @@ class PreprocessingParser:
         self,
         default_resource_id: str,
         resources: List[Resource],
-        attrs: ParsedAttrs,
         conf: list,
     ) -> List[Preprocessing]:
         Validator.must_be_list(conf, "Parsing preprocessing")
@@ -117,16 +116,6 @@ class PreprocessingParser:
 
             result.append(Preprocessing(prepro_type, value))
 
-        for prepro in result:
-            if prepro.is_output_new_data():
-                newattr = prepro.get_new_data_attribute(prepro.get_resource_id())
-                attrs.add(newattr)
-                resources.append(
-                    Resource.create_preprocessing_output(
-                        newattr.resource_id, newattr.id
-                    )
-                )
-
         return result
 
     def parse_pmap(
@@ -160,7 +149,7 @@ class PreprocessingParser:
         prepro: dict,
         trace0: str,
         cls: Union[Type[PFilter], Type[PSplit]],
-    ) -> PFilter:
+    ) -> PFilter | PSplit:
         trace1 = f"{trace0}\nParsing property `code`"
         Validator.must_have(prepro, "code", trace1)
         Validator.must_be_str(prepro["code"], trace1)

@@ -396,12 +396,10 @@ class SMParser:
 
         Validator.must_be_bool(is_required, f"{trace}\nParsing is_required")
 
-        if isinstance(attr, str):
-            node = DataNode(node_id=f"dnode:{attr}", attr_id=attr, data_type=data_type)
-        else:
-            # construct the attribute on fly
-            raise NotImplementedError()
-
+        attr_id = self.create_attr_if_needed(attr, trace).id
+        node = DataNode(
+            node_id=f"dnode:{attr_id}", attr_id=attr_id, data_type=data_type
+        )
         context.nodes[node.node_id] = node
         context.edges[len(context.edges)] = Edge(
             len(context.edges),
@@ -560,7 +558,7 @@ class SMParser:
             is_required=is_required,
         )
 
-    def create_attr_if_needed(self, attr: str | dict, trace: str):
+    def create_attr_if_needed(self, attr: Any, trace: str):
         if isinstance(attr, str):
             if attr not in self.attrs:
                 raise InputError(

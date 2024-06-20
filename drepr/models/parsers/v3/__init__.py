@@ -61,7 +61,7 @@ class ReprV3Parser:
 
         path_parser = PathParserV2()
         preprocessing = PreprocessingParser(path_parser).parse(
-            default_resource_id, resources, attrs, raw.get("preprocessing", [])
+            default_resource_id, resources, raw.get("preprocessing", [])
         )
         AttrParser(path_parser).parse(
             default_resource_id, resources, attrs, raw["attributes"]
