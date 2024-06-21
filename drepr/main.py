@@ -5,7 +5,12 @@ from pathlib import Path
 from typing import Mapping, Optional
 from uuid import uuid4
 
-from drepr.models.prelude import DRepr, OutputFormat, ResourceData
+from drepr.models.prelude import (
+    DRepr,
+    OutputFormat,
+    PreprocessResourceOutput,
+    ResourceData,
+)
 from drepr.planning.class_map_plan import ClassesMapExecutionPlan
 from drepr.program_generation.main import FileOutput, MemoryOutput, gen_program
 
@@ -53,7 +58,7 @@ def convert(
             *[
                 resources[r.id]
                 for r in exec_plan.desc.resources
-                if not r.is_preprocessing_output()
+                if not isinstance(r, PreprocessResourceOutput)
             ],
             outfile,
         )
@@ -62,7 +67,7 @@ def convert(
             *[
                 resources[r.id]
                 for r in exec_plan.desc.resources
-                if not r.is_preprocessing_output()
+                if not isinstance(r, PreprocessResourceOutput)
             ]
         )
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Type, Union
+from typing import Any, List, Type, Union
 
 from drepr.models.parsers.v1.attr_parser import ParsedAttrs
 from drepr.models.parsers.v1.path_parser import PathParser
@@ -8,6 +8,7 @@ from drepr.models.path import Path
 from drepr.models.preprocessing import (
     PFilter,
     PMap,
+    POutput,
     Preprocessing,
     PreprocessingType,
     PSplit,
@@ -32,7 +33,7 @@ class PreprocessingParser:
         - type: pmap
           [resource_id]: <resource_id>
           path: <path>
-          [output]: <attribute_id> (default is None)
+          [output]: <output> (default is None)
           [change_structure]: null|true|false (default is null)
           code: str
         ```
@@ -43,7 +44,7 @@ class PreprocessingParser:
         - type: pfilter
           [resource_id]: <resource_id>
           path: <path>
-          [output]: <attribute_id> (default is None)
+          [output]: <output> (default is None)
           code: str
         ```
 
@@ -54,8 +55,14 @@ class PreprocessingParser:
           resource_id: <resource_id>
           path: <path>
           func_id: <func_id>
-          [output]: <attribute_id> (default is None)
+          [output]: <output> (default is None)
         ```
+
+    where `output` is either <resource_id> or an object of
+        resource_id: <resource_id>
+        attr: <attr_id>
+        [attr_path]: <path>
+
     """
 
     PREPRO_TYPES = {x.value for x in PreprocessingType}
@@ -115,17 +122,9 @@ class PreprocessingParser:
                     f"Not implement the parser for preprocessing function with type {prepro_type}"
                 )
 
+            if value.output is not None and value.output.attr is not None:
+                attrs.add_preprocessing_attr(value.output.attr)
             result.append(Preprocessing(prepro_type, value))
-
-        for prepro in result:
-            if prepro.is_output_new_data():
-                newattr = prepro.get_new_data_attribute(prepro.get_resource_id())
-                attrs.add(newattr)
-                resources.append(
-                    Resource.create_preprocessing_output(
-                        newattr.resource_id, newattr.id
-                    )
-                )
 
         return result
 
@@ -139,8 +138,7 @@ class PreprocessingParser:
 
         if "output" in prepro and prepro["output"] is not None:
             trace1 = f"{trace0}\nParsing property `output`"
-            Validator.must_be_str(prepro["output"], trace1)
-            output = prepro["output"]
+            output = self.parse_output(prepro["output"], trace1)
         else:
             output = None
 
@@ -160,7 +158,7 @@ class PreprocessingParser:
         prepro: dict,
         trace0: str,
         cls: Union[Type[PFilter], Type[PSplit]],
-    ) -> PFilter:
+    ) -> PFilter | PSplit:
         trace1 = f"{trace0}\nParsing property `code`"
         Validator.must_have(prepro, "code", trace1)
         Validator.must_be_str(prepro["code"], trace1)
@@ -168,8 +166,7 @@ class PreprocessingParser:
 
         if "output" in prepro:
             trace1 = f"{trace0}\nParsing property `output`"
-            Validator.must_be_str(prepro["output"], trace1)
-            output = prepro["output"]
+            output = self.parse_output(prepro["output"], trace1)
         else:
             output = None
 
@@ -185,9 +182,46 @@ class PreprocessingParser:
 
         if "output" in prepro:
             trace1 = f"{trace0}\nParsing property `output`"
-            Validator.must_be_str(prepro["output"], trace1)
-            output = prepro["output"]
+            output = self.parse_output(prepro["output"], trace1)
         else:
             output = None
 
         return RMap(resource_id, path, func_id, output)
+
+    def parse_output(self, output: Any, trace: str) -> POutput:
+        if isinstance(output, str):
+            return POutput(resource_id=output, attr=None, attr_path=None)
+        else:
+            Validator.must_be_dict(
+                output, f"{trace}\nParsing output. Must be either string or dictionary"
+            )
+            Validator.must_be_subset(
+                {"resource_id", "attr", "attr_path"},
+                output.keys(),
+                "keys of preprocessing output",
+                trace,
+            )
+
+            if "resource_id" in output:
+                Validator.must_be_str(
+                    output["resource_id"], f"{trace}\nParsing output's resource id"
+                )
+
+            attr_path = None
+            if "attr_path" in output:
+                attr_path = self.path_parser.parse(
+                    resource=None,
+                    path=output["attr_path"],
+                    parse_trace=f"{trace}\nParsing output's attr_path",
+                )
+
+            if "attr" in output:
+                Validator.must_be_str(
+                    output["attr"], f"{trace}\nParsing output's attribute"
+                )
+
+            return POutput(
+                resource_id=output.get("resource_id"),
+                attr=output.get("attr"),
+                attr_path=attr_path,
+            )

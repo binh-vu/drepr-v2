@@ -8,11 +8,18 @@ from drepr.models.resource import Resource
 
 
 @dataclass
+class POutput:
+    resource_id: Optional[str]
+    attr: Optional[str]
+    attr_path: Optional[Path]
+
+
+@dataclass
 class PMap:
     resource_id: str
     path: Path
     code: str
-    output: Optional[str] = None
+    output: Optional[POutput] = None
     change_structure: Optional[bool] = None
 
 
@@ -21,7 +28,7 @@ class PFilter:
     resource_id: str
     path: Path
     code: str
-    output: Optional[str] = None
+    output: Optional[POutput] = None
 
 
 @dataclass
@@ -29,7 +36,7 @@ class PSplit:
     resource_id: str
     path: Path
     code: str
-    output: Optional[str] = None
+    output: Optional[POutput] = None
 
 
 class RMapFunc(Enum):
@@ -41,7 +48,7 @@ class RMap:
     resource_id: str
     path: Path
     func_id: RMapFunc
-    output: Optional[str] = None
+    output: Optional[POutput] = None
 
 
 class PreprocessingType(Enum):
@@ -54,7 +61,7 @@ class PreprocessingType(Enum):
 @dataclass
 class Preprocessing:
     type: PreprocessingType
-    value: Union[PMap, PFilter, RMap]
+    value: Union[PMap, PFilter, PSplit, RMap]
 
     @staticmethod
     def deserialize(raw: dict):
@@ -73,6 +80,17 @@ class Preprocessing:
 
         return Preprocessing(type, value)
 
+    def get_output(self) -> Optional[POutput]:
+        if self.type in (
+            PreprocessingType.pmap,
+            PreprocessingType.pfilter,
+            PreprocessingType.psplit,
+            PreprocessingType.rmap,
+        ):
+            return self.value.output
+        else:
+            raise NotImplementedError(self.type)
+
     def is_output_new_data(self) -> bool:
         """Check if the preprocessing will generate new data. The new data is stored in a new variable"""
         if self.type == PreprocessingType.pmap:
@@ -89,34 +107,6 @@ class Preprocessing:
             return self.value.output is not None
         else:
             raise NotImplementedError()
-
-    def get_new_data_attribute(self, resource_id: str) -> Attr:
-        if self.type == PreprocessingType.pmap:
-            assert isinstance(self.value, PMap) and self.value.output is not None
-            attr_id = self.value.output
-            attr_path = self.value.path
-        elif self.type == PreprocessingType.pfilter:
-            assert isinstance(self.value, PFilter) and self.value.output is not None
-            attr_id = self.value.output
-            attr_path = self.value.path
-        elif self.type == PreprocessingType.psplit:
-            assert isinstance(self.value, PSplit) and self.value.output is not None
-            attr_id = self.value.output
-            attr_path = self.value.path
-        elif self.type == PreprocessingType.rmap:
-            assert isinstance(self.value, RMap) and self.value.output is not None
-            attr_id = self.value.output
-            attr_path = self.value.path
-        else:
-            raise NotImplementedError()
-
-        resource_id = Resource.get_preprocessing_output_id(resource_id, attr_id)
-        return Attr(
-            id=attr_id,
-            resource_id=resource_id,
-            path=attr_path,
-            missing_values=[None],
-        )
 
     def get_resource_id(self):
         if self.type == PreprocessingType.pmap:

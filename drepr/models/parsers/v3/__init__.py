@@ -63,13 +63,14 @@ class ReprV3Parser:
         preprocessing = PreprocessingParser(path_parser).parse(
             default_resource_id, resources, attrs, raw.get("preprocessing", [])
         )
-        AttrParser(path_parser).parse(
-            default_resource_id, resources, attrs, raw["attributes"]
-        )
+        attr_parser = AttrParser(path_parser)
+        attr_parser.parse(default_resource_id, resources, attrs, raw["attributes"])
         aligns = AlignParser.parse(raw.get("alignments", []))
 
         if "semantic_model" in raw:
-            sm = SMParser(attrs).parse(raw["semantic_model"])
+            sm = SMParser(
+                default_resource_id, resources, attrs, path_parser, attr_parser
+            ).parse(raw["semantic_model"])
         else:
             sm = SemanticModel.get_default(attrs.attrs)
 

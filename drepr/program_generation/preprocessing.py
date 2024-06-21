@@ -3,9 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-import drepr.models.path as dpath
 from codegen.models import AST, Program, Var, expr
 from codegen.models.var import DeferredVar
+
+import drepr.models.path as dpath
 from drepr.models.prelude import (
     Attr,
     Context,
@@ -83,9 +84,12 @@ class GenPreprocessing:
             )
             # call preprocessing fn in the main program and assign if needed
             if value.output is not None:
-                prepro_resource_id = Resource.get_preprocessing_output_id(
-                    value.resource_id, value.output
-                )
+                if value.output.attr is None:
+                    raise NotImplementedError()
+
+                prepro_resource_id = self.desc.get_attr_by_id(
+                    value.output.attr
+                ).resource_id
                 self.call_preproc_ast.assign(
                     DeferredVar(
                         name=f"resource_data_{prepro_resource_id}",
@@ -102,11 +106,14 @@ class GenPreprocessing:
     def _generate_preprocessing_pmap(self, prepro_id: int, prepro_fn: AST, value: PMap):
         if not value.change_structure:
             if value.output is not None:
-                prepro_resource_id = Resource.get_preprocessing_output_id(
-                    value.resource_id, value.output
-                )
+                if value.output.attr is None:
+                    raise NotImplementedError()
+
+                prepro_resource_id = self.desc.get_attr_by_id(
+                    value.output.attr
+                ).resource_id
                 # create a variable to store the preprocess results
-                output_attr_id = value.output
+                output_attr_id = value.output.attr
                 output_attr = DeferredVar(
                     name=output_attr_id, key=VarSpace.preprocessing_output(prepro_id)
                 )

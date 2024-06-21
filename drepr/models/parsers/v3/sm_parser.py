@@ -5,7 +5,9 @@ from typing import Any
 from uuid import uuid4
 
 from drepr.models.attr import Attr
+from drepr.models.parsers.interface import PathParser
 from drepr.models.parsers.v1.attr_parser import AttrParser, ParsedAttrs
+from drepr.models.resource import Resource
 from drepr.models.sm import (
     DREPR_URI,
     ClassNode,
@@ -121,8 +123,19 @@ class SMParser:
     )
     REG_SM_REL = re.compile(r"^((?:(?!--).)+:\d+)--((?:(?!--).)+)--((?:(?!--).)+:\d+)$")
 
-    def __init__(self, attrs: ParsedAttrs):
+    def __init__(
+        self,
+        default_resource_id: str,
+        resources: list[Resource],
+        attrs: ParsedAttrs,
+        path_parser: PathParser,
+        attr_parser: AttrParser,
+    ):
+        self.default_resource_id = default_resource_id
+        self.resources = resources
         self.attrs = attrs
+        self.path_parser = path_parser
+        self.attr_parser = attr_parser
 
     def parse(self, sm: dict) -> SemanticModel:
         # deep copy
@@ -212,7 +225,7 @@ class SMParser:
         if "subject" in class_conf:
             trace1 = f"{trace0}\nParsing subject"
             subj_attr = self.create_attr_if_needed(class_conf["subject"], trace1)
-            classnode.subject = subj_attr.id
+            classnode.subject = subj_attr
 
     def parse_static_property(
         self,
@@ -396,12 +409,10 @@ class SMParser:
 
         Validator.must_be_bool(is_required, f"{trace}\nParsing is_required")
 
-        if isinstance(attr, str):
-            node = DataNode(node_id=f"dnode:{attr}", attr_id=attr, data_type=data_type)
-        else:
-            # construct the attribute on fly
-            raise NotImplementedError()
-
+        attr_id = self.create_attr_if_needed(attr, trace)
+        node = DataNode(
+            node_id=f"dnode:{attr_id}", attr_id=attr_id, data_type=data_type
+        )
         context.nodes[node.node_id] = node
         context.edges[len(context.edges)] = Edge(
             len(context.edges),
@@ -547,7 +558,7 @@ class SMParser:
             if "id" in target:
                 target_class_id = target["id"]
             else:
-                target_class_id = str(uuid4())
+                target_class_id = f'{target["uri"]}:{len(context.nodes)}'
 
             self.parse_class(context, target_class_id, target)
         else:
@@ -560,13 +571,41 @@ class SMParser:
             is_required=is_required,
         )
 
-    def create_attr_if_needed(self, attr: str | dict, trace: str):
-        if isinstance(attr, str):
-            if attr not in self.attrs:
+    def create_attr_if_needed(self, attr: Any, trace: str):
+        if isinstance(attr, str) and attr[0] != "$":
+            if not self.attrs.has_been_reference_before(attr):
                 raise InputError(
                     f"{trace}\nAttribute {attr} is not defined yet. If you want to create it on fly with only `path`, please use list format for the attribute path"
                 )
-            return self.attrs[attr]
+            return attr
 
         # construct the attribute on fly
-        raise NotImplementedError()
+        if isinstance(attr, str):
+            # attribute path -- only work if only a single resource
+            if len(self.resources) > 1:
+                raise InputError(
+                    f"{trace}\nERROR: Cannot create an attribute only from path in a multi-resource environment"
+                )
+
+            path = self.path_parser.parse(self.resources[0], attr, trace)
+            newattr = Attr(
+                str(uuid4()).replace("-", "_"),
+                self.default_resource_id,
+                path,
+                missing_values=[],
+            )
+        else:
+            trace1 = f"{trace}\nParsing attribute"
+            Validator.must_be_dict(attr, trace1)
+            Validator.must_have(attr, "id", trace1)
+            Validator.must_be_str(attr["id"], f"{trace1}\nParsing attribute id")
+
+            attr_id = attr["id"]
+            if self.attrs.has_been_reference_before(attr_id):
+                raise InputError(f"{trace1}\nERROR: Duplicated attribute id: {attr_id}")
+            newattr = self.attr_parser.parse_expanded_def(
+                self.default_resource_id, self.resources, attr_id, attr, trace1
+            )
+
+        self.attrs.add(newattr)
+        return newattr.id
