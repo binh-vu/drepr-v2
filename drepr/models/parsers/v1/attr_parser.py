@@ -12,6 +12,7 @@ from drepr.utils.validator import InputError, Validator
 class ParsedAttrs:
     attrs: list[Attr] = field(default_factory=list)
     id2attr: dict[str, Attr] = field(default_factory=dict)
+    attrs_created_in_preprocessing: set[str] = field(default_factory=set)
 
     def add(self, attr: Attr):
         if attr.id in self.attrs:
@@ -19,6 +20,12 @@ class ParsedAttrs:
 
         self.attrs.append(attr)
         self.id2attr[attr.id] = attr
+
+    def add_preprocessing_attr(self, attr_id: str):
+        self.attrs_created_in_preprocessing.add(attr_id)
+
+    def has_been_reference_before(self, attr_id: str):
+        return attr_id in self.id2attr or attr_id in self.attrs_created_in_preprocessing
 
     def __contains__(self, id: str):
         return id in self.id2attr

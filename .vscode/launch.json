@@ -53,18 +53,18 @@
                 // "--progfile",
                 // "temporary/program/write_to_str.py",
                 // "--debuginfo"
-                // "sources/zinc/Mudd-and-Jowitt-2017-Zinc.v3.yml",
-                // "default=sources/zinc/Mudd-and-Jowitt-2017-Zinc.csv",
-                // "--outfile",
-                // "sources/zinc/output.ttl",
-                // "--progfile",
-                // "sources/zinc/program.py"
-                "sources/tungsten/model.v3.yml",
-                "default=sources/tungsten/data.json",
+                "sources/zinc/Mudd-and-Jowitt-2017-Zinc.yml",
+                "default=sources/zinc/Mudd-and-Jowitt-2017-Zinc.csv",
                 "--outfile",
-                "sources/tungsten/output.ttl",
+                "sources/zinc/output.ttl",
                 "--progfile",
-                "sources/tungsten/program.py"
+                "sources/zinc/program.py"
+                // "sources/tungsten/model.v3.yml",
+                // "default=sources/tungsten/data.json",
+                // "--outfile",
+                // "sources/tungsten/output.ttl",
+                // "--progfile",
+                // "sources/tungsten/program.py"
             ],
             "cwd": "/Volumes/research/darpa-criticalmaas"
         },

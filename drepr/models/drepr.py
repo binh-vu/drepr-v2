@@ -163,11 +163,6 @@ class DRepr:
         """
         # CHECK 1: all references (resource id, attribute ids) are valid
         resource_ids = {r.id for r in self.resources}
-        for r in self.resources:
-            assert not r.is_preprocessing_output(), (
-                f"Resource {r.id} is detected as output of a preprocessing step. "
-                f"Please choose a different name"
-            )
 
         attr_ids = {attr.id for attr in self.attrs}
         assert len(attr_ids) == len(self.attrs), "Duplicate attribute ids"
@@ -178,11 +173,16 @@ class DRepr:
 
         for pref in self.preprocessing:
             if pref.value.output is not None:
-                # preprocessing create new attribute
-                assert (
-                    pref.value.output not in attr_ids
-                ), f"Cannot overwrite existing attribute: {pref.value.output}"
-                attr_ids.add(pref.value.output)
+                if pref.value.output.resource_id is not None:
+                    assert (
+                        pref.value.output.resource_id not in resource_ids
+                    ), f"Preprocessing {pref} overwrite existence resource: {pref.value.output.resource_id}"
+                if pref.value.output.attr is not None:
+                    # preprocessing create new attribute
+                    assert (
+                        pref.value.output.attr not in attr_ids
+                    ), f"Cannot overwrite existing attribute: {pref.value.output.attr}"
+                    attr_ids.add(pref.value.output.attr)
 
         for align in self.aligns:
             if isinstance(align, AutoAlignment):

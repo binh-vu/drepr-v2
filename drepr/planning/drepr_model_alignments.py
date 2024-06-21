@@ -4,19 +4,24 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Optional
 
-from drepr.models.align import AlignedStep, AutoAlignment
-from drepr.models.attr import Attr
-from drepr.models.path import IndexExpr, RangeExpr, SetIndexExpr
+from graph.retworkx import RetworkXStrDiGraph
+
 from drepr.models.prelude import (
+    AlignedStep,
     Alignment,
+    Attr,
     AttrId,
+    AutoAlignment,
     Cardinality,
     DRepr,
     IdenticalAlign,
+    IndexExpr,
+    PreprocessResourceOutput,
     RangeAlignment,
+    RangeExpr,
+    SetIndexExpr,
     ValueAlignment,
 )
-from graph.retworkx import RetworkXStrDiGraph
 
 
 @dataclass
@@ -58,7 +63,7 @@ class DReprModelAlignments:
                             )
                             assert source_resource is not None
                             if not (
-                                source_resource.is_preprocessing_output()
+                                isinstance(source_resource, PreprocessResourceOutput)
                                 and source_resource.get_preprocessing_original_resource_id()
                                 == target.resource_id
                             ):

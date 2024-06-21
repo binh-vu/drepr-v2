@@ -19,6 +19,7 @@ from drepr.models.prelude import (
     NodeId,
     Resource,
 )
+from drepr.models.resource import PreprocessResourceOutput
 from drepr.models.sm import DREPR_BLANK
 from drepr.planning.drepr_model_alignments import DReprModelAlignments
 from drepr.planning.topological_sorting import topological_sorting
@@ -158,24 +159,34 @@ class ClassesMapExecutionPlan:
             return desc
 
         desc = deepcopy(desc)
-        assert all(not r.is_preprocessing_output() for r in desc.resources)
-        for pre in desc.preprocessing:
+        assert all(not isinstance(r, PreprocessResourceOutput) for r in desc.resources)
+        for i, pre in enumerate(desc.preprocessing):
             pre_output = pre.get_output()
             if pre_output is None:
                 continue
-
-            if pre_output.attr is None:
-                ...
-            attr = pre.get_new_data_attribute(pre.get_resource_id())
-            newresource = Resource.create_preprocessing_output(
-                attr.resource_id, attr.id
+            if pre_output.resource_id is None:
+                assert pre_output.attr is not None
+                newresource_id = f"dynres_{pre_output.attr}"
+                assert desc.get_resource_by_id(newresource_id) is None
+            else:
+                newresource_id = pre_output.resource_id
+            newresource = PreprocessResourceOutput(
+                resource_id=newresource_id,
+                original_resource_id=pre.get_resource_id(),
             )
-            attr.resource_id = newresource.id
 
-            assert not desc.has_attr(
-                attr.id
-            ), f"Preprocessing attempts to write to an existing attribute: {attr.id}. Please change the output attribute id"
-            desc.attrs.append(attr)
+            if pre_output.attr is not None:
+                newattr = Attr(
+                    id=pre_output.attr,
+                    resource_id=newresource.id,
+                    path=(
+                        pre_output.attr_path
+                        if pre_output.attr_path is not None
+                        else pre.value.path
+                    ),
+                    missing_values=[None],
+                )
+                desc.attrs.append(newattr)
             desc.add_resource(newresource)
 
         return desc

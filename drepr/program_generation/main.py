@@ -7,8 +7,13 @@ from typing import Callable
 
 from codegen.models import AST, PredefinedFn, Program, expr, stmt
 from codegen.models.var import DeferredVar
-from drepr.models.path import IndexExpr
-from drepr.models.prelude import DRepr, OutputFormat
+
+from drepr.models.prelude import (
+    DRepr,
+    IndexExpr,
+    OutputFormat,
+    PreprocessResourceOutput,
+)
 from drepr.planning.class_map_plan import (
     BlankObject,
     BlankSubject,
@@ -56,7 +61,7 @@ def gen_program(
             key=VarSpace.resource(res.id),
         )
         for res in desc.resources
-        if not res.is_preprocessing_output()
+        if not isinstance(res, PreprocessResourceOutput)
     ]
     if isinstance(output, FileOutput):
         output_file = DeferredVar(name="output_file", key=VarSpace.output_file())
@@ -68,7 +73,7 @@ def gen_program(
     main_fn = program.root.func("main", func_args)
 
     for resource in desc.resources:
-        if resource.is_preprocessing_output():
+        if isinstance(resource, PreprocessResourceOutput):
             continue
         var = DeferredVar(
             name=(

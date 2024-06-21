@@ -9,7 +9,7 @@ from uuid import uuid4
 
 import typer
 
-from drepr.models.prelude import DRepr, OutputFormat
+from drepr.models.prelude import DRepr, OutputFormat, PreprocessResourceOutput
 from drepr.planning.class_map_plan import ClassesMapExecutionPlan
 from drepr.program_generation.main import FileOutput, MemoryOutput, Output, gen_program
 
@@ -114,7 +114,7 @@ def main(
             *[
                 parsed_resources[r.id]
                 for r in exec_plan.desc.resources
-                if not r.is_preprocessing_output()
+                if not isinstance(r, PreprocessResourceOutput)
             ],
             outfile,
         )
@@ -124,7 +124,7 @@ def main(
                 *[
                     parsed_resources[r.id]
                     for r in exec_plan.desc.resources
-                    if not r.is_preprocessing_output()
+                    if not isinstance(r, PreprocessResourceOutput)
                 ]
             )
         )

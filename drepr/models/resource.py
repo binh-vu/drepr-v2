@@ -45,36 +45,17 @@ class Resource:
             prop = None
         return Resource(raw["id"], ResourceType(raw["type"]), prop)
 
+
+@dataclass
+class PreprocessResourceOutput(Resource):
+    original_resource_id: str = ""
+
+    def __init__(self, resource_id: str, original_resource_id: str):
+        super().__init__(id=resource_id, type=ResourceType.Container, prop=None)
+        self.original_resource_id = original_resource_id
+
     def get_preprocessing_original_resource_id(self):
-        return Resource.parse_preprocessing_output_id(self.id)[0]
-
-    def is_preprocessing_output(self):
-        """Return true if this resource holds output of preprocessing functions"""
-        return (
-            self.id.startswith(f"__preproc__") and self.type == ResourceType.Container
-        )
-
-    @staticmethod
-    def create_preprocessing_output(resource_id: str, attr_id: str) -> Resource:
-        return Resource(
-            Resource.get_preprocessing_output_id(resource_id, attr_id),
-            ResourceType.Container,
-        )
-
-    @staticmethod
-    def get_preprocessing_output_id(resource_id: str, attr_id: str) -> str:
-        if resource_id.startswith("__preproc__"):
-            resource_id, _ = Resource.parse_preprocessing_output_id(resource_id)
-        assert (
-            "__" not in resource_id
-        ), "Resource ID for preprocessing cannot contain '__'"
-        return f"__preproc__{resource_id}__{attr_id}"
-
-    @staticmethod
-    def parse_preprocessing_output_id(output_id: str) -> tuple[str, str]:
-        assert output_id.startswith("__preproc__")
-        parts = output_id[len("__preproc__") :].split("__")
-        return parts[0], parts[1]
+        return self.original_resource_id
 
 
 class ResourceData(ABC):

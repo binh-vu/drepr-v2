@@ -108,34 +108,6 @@ class Preprocessing:
         else:
             raise NotImplementedError()
 
-    def get_new_data_attribute(self, resource_id: str) -> Attr:
-        if self.type == PreprocessingType.pmap:
-            assert isinstance(self.value, PMap) and self.value.output is not None
-            attr_id = self.value.output
-            attr_path = self.value.path
-        elif self.type == PreprocessingType.pfilter:
-            assert isinstance(self.value, PFilter) and self.value.output is not None
-            attr_id = self.value.output
-            attr_path = self.value.path
-        elif self.type == PreprocessingType.psplit:
-            assert isinstance(self.value, PSplit) and self.value.output is not None
-            attr_id = self.value.output
-            attr_path = self.value.path
-        elif self.type == PreprocessingType.rmap:
-            assert isinstance(self.value, RMap) and self.value.output is not None
-            attr_id = self.value.output
-            attr_path = self.value.path
-        else:
-            raise NotImplementedError()
-
-        resource_id = Resource.get_preprocessing_output_id(resource_id, attr_id)
-        return Attr(
-            id=attr_id,
-            resource_id=resource_id,
-            path=attr_path,
-            missing_values=[None],
-        )
-
     def get_resource_id(self):
         if self.type == PreprocessingType.pmap:
             assert isinstance(self.value, PMap)

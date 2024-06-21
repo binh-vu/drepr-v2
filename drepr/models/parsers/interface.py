@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import List, Union
+from typing import List, Optional, Union
 
 from drepr.models.path import Path
 from drepr.models.resource import Resource
@@ -11,7 +11,7 @@ from drepr.utils.validator import InputError
 class PathParser(ABC):
     @abstractmethod
     def parse(
-        self, resource: Resource, path: Union[str, list], parse_trace: str
+        self, resource: Optional[Resource], path: Union[str, list], parse_trace: str
     ) -> Path:
         pass
 

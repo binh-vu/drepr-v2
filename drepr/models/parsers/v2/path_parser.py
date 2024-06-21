@@ -1,7 +1,7 @@
 import re
 from abc import ABC, abstractmethod
 from copy import copy
-from typing import List, Optional, Union
+from typing import Any, List, Optional, Union
 
 from drepr.models.parsers.interface import PathParser
 from drepr.models.path import Expr, IndexExpr, Path, RangeExpr, WildcardExpr
@@ -27,9 +27,7 @@ class PathParserV2(PathParser):
     )
     REG_JPATH_DOT = re.compile(r"\.((?:(?!\.|\[).)+)")
 
-    def parse(
-        self, resource: Optional[Resource], path: Union[str, list], parse_trace: str
-    ) -> Path:
+    def parse(self, resource: Optional[Resource], path: Any, parse_trace: str) -> Path:
         if isinstance(path, str):
             return self.parse_jsonpath(resource, path, parse_trace)
 
