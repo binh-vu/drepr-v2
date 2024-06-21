@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Version 3 of the language. Mostly to support inplace creating of new attributes and classes.
+
+### Fixed
+
+- Support classes of only static properties
+
 ## [1.3.14] - 2024-06-18
 
 ### Changed

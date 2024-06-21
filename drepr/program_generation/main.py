@@ -25,6 +25,8 @@ from drepr.planning.class_map_plan import (
     InternalIDSubject,
     LiteralProp,
     ObjectProp,
+    SingletonObject,
+    SingletonSubject,
 )
 from drepr.program_generation.alignment_fn import AlignmentFn, PathAccessor
 from drepr.program_generation.predefined_fn import DReprPredefinedFn
@@ -190,136 +192,147 @@ def gen_classplan_executor(
     class_uri = expr.ExprConstant(
         desc.sm.get_abs_iri(desc.sm.get_class_node(classplan.class_id).label)
     )
-
-    ast = PathAccessor(program).iterate_elements(
-        parent_ast,
-        classplan.subject.attr,
-        None,
-        None,
-        validate_path=debuginfo,
-        on_missing_key=(
-            lambda tree: (
-                PathAccessor.skip_on_missing_key(parent_ast, tree)
-                if classplan.subject.attr.path.has_optional_steps()
-                else None
-            )
-        ),
-    )
-    is_subj_blank = isinstance(classplan.subject, BlankSubject)
-    can_class_missing = (
-        any(
-            not dprop.is_optional and dprop.can_target_missing
-            for dprop in classplan.data_props
-        )
-        or any(
-            not oprop.is_optional and oprop.can_target_missing
-            for oprop in classplan.object_props
-        )
-        or any(
-            not oprop.is_optional and oprop.can_target_missing
-            for oprop in classplan.buffered_object_props
-        )
-    )
-    is_buffered = can_class_missing
-
     get_subj_val: Callable[[AST], expr.Expr]
-    if isinstance(classplan.subject, (InternalIDSubject, ExternalIDSubject)):
-        get_subj_val = lambda ast: expr.ExprVar(
-            program.get_var(
-                key=VarSpace.attr_value_dim(
-                    classplan.subject.attr.resource_id,
-                    classplan.subject.attr.id,
-                    len(classplan.subject.attr.path.steps) - 1,
-                ),
-                at=ast.next_child_id(),
+    classplan_subject = classplan.subject
+    if isinstance(classplan_subject, SingletonSubject):
+        ast = parent_ast
+        is_subj_blank = classplan_subject.is_blank
+        is_buffered = False
+        can_class_missing = False
+        get_subj_val = lambda ast: get_subj_val_for_static_class(classplan.class_id)
+    else:
+        ast = PathAccessor(program).iterate_elements(
+            parent_ast,
+            classplan_subject.attr,
+            None,
+            None,
+            validate_path=debuginfo,
+            on_missing_key=(
+                lambda tree: (
+                    PathAccessor.skip_on_missing_key(parent_ast, tree)
+                    if classplan_subject.attr.path.has_optional_steps()
+                    else None
+                )
+            ),
+        )
+        is_subj_blank = isinstance(classplan_subject, BlankSubject)
+        can_class_missing = (
+            any(
+                not dprop.is_optional and dprop.can_target_missing
+                for dprop in classplan.data_props
+            )
+            or any(
+                not oprop.is_optional and oprop.can_target_missing
+                for oprop in classplan.object_props
+            )
+            or any(
+                not oprop.is_optional and oprop.can_target_missing
+                for oprop in classplan.buffered_object_props
             )
         )
-    else:
-        assert isinstance(classplan.subject, BlankSubject)
-        if classplan.subject.use_attr_value:
-            get_subj_val = lambda ast: PredefinedFn.tuple(
-                [
-                    expr.ExprConstant(
-                        desc.get_attr_index_by_id(classplan.subject.attr.id)
+        is_buffered = can_class_missing
+
+        if isinstance(classplan_subject, (InternalIDSubject, ExternalIDSubject)):
+            get_subj_val = lambda ast: expr.ExprVar(
+                program.get_var(
+                    key=VarSpace.attr_value_dim(
+                        classplan_subject.attr.resource_id,
+                        classplan_subject.attr.id,
+                        len(classplan_subject.attr.path.steps) - 1,
                     ),
-                    expr.ExprVar(
-                        program.get_var(
-                            key=VarSpace.attr_value_dim(
-                                classplan.subject.attr.resource_id,
-                                classplan.subject.attr.id,
-                                len(classplan.subject.attr.path.steps) - 1,
-                            ),
-                            at=ast.next_child_id(),
-                        )
-                    ),
-                ]
+                    at=ast.next_child_id(),
+                )
             )
         else:
-            # if we don't use attr value, the subj_val is the entire index that leads to the last value
-            get_subj_val = lambda ast: (
-                PredefinedFn.tuple(
+            assert isinstance(classplan_subject, BlankSubject)
+            if classplan_subject.use_attr_value:
+                get_subj_val = lambda ast: PredefinedFn.tuple(
                     [
                         expr.ExprConstant(
-                            desc.get_attr_index_by_id(classplan.subject.attr.id)
-                        )
-                    ]
-                    + [
+                            desc.get_attr_index_by_id(classplan_subject.attr.id)
+                        ),
                         expr.ExprVar(
                             program.get_var(
-                                key=VarSpace.attr_index_dim(
-                                    classplan.subject.attr.resource_id,
-                                    classplan.subject.attr.id,
-                                    dim,
+                                key=VarSpace.attr_value_dim(
+                                    classplan_subject.attr.resource_id,
+                                    classplan_subject.attr.id,
+                                    len(classplan_subject.attr.path.steps) - 1,
                                 ),
                                 at=ast.next_child_id(),
                             )
-                        )
-                        for dim, step in enumerate(classplan.subject.attr.path.steps)
-                        if not isinstance(step, IndexExpr)
+                        ),
                     ]
                 )
-            )
+            else:
+                # if we don't use attr value, the subj_val is the entire index that leads to the last value
+                get_subj_val = lambda ast: (
+                    PredefinedFn.tuple(
+                        [
+                            expr.ExprConstant(
+                                desc.get_attr_index_by_id(classplan_subject.attr.id)
+                            )
+                        ]
+                        + [
+                            expr.ExprVar(
+                                program.get_var(
+                                    key=VarSpace.attr_index_dim(
+                                        classplan_subject.attr.resource_id,
+                                        classplan_subject.attr.id,
+                                        dim,
+                                    ),
+                                    at=ast.next_child_id(),
+                                )
+                            )
+                            for dim, step in enumerate(
+                                classplan_subject.attr.path.steps
+                            )
+                            if not isinstance(step, IndexExpr)
+                        ]
+                    )
+                )
 
-    if (
-        isinstance(classplan.subject, (InternalIDSubject, ExternalIDSubject))
-        and len(classplan.subject.attr.missing_values) > 0
-    ) or (
-        isinstance(classplan.subject, BlankSubject)
-        and classplan.subject.use_attr_value
-        and len(classplan.subject.attr.missing_values) > 0
-    ):
-        # we know immediately that it's missing if the subject value is missing
+        if (
+            isinstance(classplan_subject, (InternalIDSubject, ExternalIDSubject))
+            and len(classplan_subject.attr.missing_values) > 0
+        ) or (
+            isinstance(classplan_subject, BlankSubject)
+            and classplan_subject.use_attr_value
+            and len(classplan_subject.attr.missing_values) > 0
+        ):
+            # we know immediately that it's missing if the subject value is missing
 
-        if ast.id == parent_ast.id:
-            # same ast because of a single value, we can't use continue
-            # so we wrap it with if -- if not missing, continue to generate the instance
-            ast = ast.if_(
-                expr.ExprNegation(
+            if ast.id == parent_ast.id:
+                # same ast because of a single value, we can't use continue
+                # so we wrap it with if -- if not missing, continue to generate the instance
+                ast = ast.if_(
+                    expr.ExprNegation(
+                        PredefinedFn.set_contains(
+                            expr.ExprVar(
+                                program.get_var(
+                                    key=VarSpace.attr_missing_values(
+                                        classplan_subject.attr.id
+                                    ),
+                                    at=ast.next_child_id(),
+                                )
+                            ),
+                            get_subj_val(ast),
+                        )
+                    )
+                )
+            else:
+                ast.if_(
                     PredefinedFn.set_contains(
                         expr.ExprVar(
                             program.get_var(
                                 key=VarSpace.attr_missing_values(
-                                    classplan.subject.attr.id
+                                    classplan_subject.attr.id
                                 ),
                                 at=ast.next_child_id(),
                             )
                         ),
                         get_subj_val(ast),
                     )
-                )
-            )
-        else:
-            ast.if_(
-                PredefinedFn.set_contains(
-                    expr.ExprVar(
-                        program.get_var(
-                            key=VarSpace.attr_missing_values(classplan.subject.attr.id),
-                            at=ast.next_child_id(),
-                        )
-                    ),
-                    get_subj_val(ast),
-                )
-            )(stmt.ContinueStatement())
+                )(stmt.ContinueStatement())
 
     writer.begin_record(
         ast,
@@ -347,7 +360,12 @@ def gen_classplan_executor(
 
     for objprop in classplan.object_props:
         ast.linebreak()
-        ast.comment(f"Retrieve value of object property: {objprop.attr.id}")
+        if isinstance(objprop, SingletonObject):
+            ast.comment(
+                f"Link object property to a singleton object: {objprop.target_class_id}"
+            )
+        else:
+            ast.comment(f"Retrieve value of object property: {objprop.attr.id}")
 
         gen_classprop_body(
             program,
@@ -383,7 +401,7 @@ def gen_classplan_executor(
     # we can end the record even if we abort it before. the end record code should handle this.
     ast.linebreak()
 
-    if isinstance(classplan.subject, BlankSubject) and can_class_missing:
+    if isinstance(classplan_subject, BlankSubject) and can_class_missing:
         ast.if_(writer.is_record_empty(ast))(lambda ast00: writer.abort_record(ast00))
         ast.else_()(lambda ast00: writer.end_record(ast00))
     else:
@@ -475,9 +493,13 @@ def gen_classprop_body(
                     ]
                 )
             )
-    else:
-        assert isinstance(classprop, LiteralProp)
+    elif isinstance(classprop, LiteralProp):
         get_prop_val = lambda ast: expr.ExprConstant(classprop.value)
+    else:
+        assert isinstance(classprop, SingletonObject)
+        get_prop_val = lambda ast: get_subj_val_for_static_class(
+            classprop.target_class_id
+        )
 
     is_prop_val_not_missing: Callable[[AST], expr.Expr]
     if isinstance(classprop, DataProp):
@@ -507,7 +529,7 @@ def gen_classprop_body(
         write_fn = partial(
             writer.write_object_property,
             is_subject_blank=expr.ExprConstant(is_subj_blank),
-            is_object_blank=expr.ExprConstant(isinstance(classprop, BlankObject)),
+            is_object_blank=expr.ExprConstant(classprop.is_object_blank()),
             is_new_subj=expr.ExprConstant(False),
         )
     else:
@@ -517,7 +539,7 @@ def gen_classprop_body(
             writer.write_data_property, dtype=expr.ExprConstant(classprop.datatype)
         )
 
-    if isinstance(classprop, LiteralProp):
+    if isinstance(classprop, (LiteralProp, SingletonObject)):
         write_fn(ast, expr.ExprConstant(classprop.predicate), get_prop_val(ast))
     else:
         if not classprop.can_target_missing:
@@ -649,3 +671,9 @@ def gen_classprop_body(
                             ),
                         ),
                     )
+
+
+def get_subj_val_for_static_class(class_id):
+    return PredefinedFn.tuple(
+        [expr.ExprConstant("static-8172a"), expr.ExprConstant(class_id)]
+    )
