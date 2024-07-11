@@ -1,10 +1,10 @@
 from drepr.readers.prelude import read_source_json
-from drepr.writers.rdfgraph_writer import RDFGraphWriter
+from drepr.writers.turtle_writer import TurtleWriter
 
 def main(resource_0):
 	resource_data_1 = read_source_json(resource_0)
 	
-	writer_2 = RDFGraphWriter({"mndr": "https://minmod.isi.edu/resource/", "drepr": "https://purl.org/drepr/1.0/", "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdfs": "http://www.w3.org/2000/01/rdf-schema#", "owl": "http://www.w3.org/2002/07/owl#", "xsd": "http://www.w3.org/2001/XMLSchema#"})
+	writer_2 = TurtleWriter({"mndr": "https://minmod.isi.edu/resource/", "drepr": "https://purl.org/drepr/1.0/", "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdfs": "http://www.w3.org/2000/01/rdf-schema#", "owl": "http://www.w3.org/2002/07/owl#", "xsd": "http://www.w3.org/2001/XMLSchema#"})
 	
 	# Transform records of class mndr:DepositTypeCandidate:1
 	deposit_type_uri_value_0_3 = resource_data_1["MineralSite"]

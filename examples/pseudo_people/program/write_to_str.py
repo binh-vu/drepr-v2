@@ -1,10 +1,10 @@
 from drepr.readers.prelude import read_source_csv
-from drepr.writers.rdfgraph_writer import RDFGraphWriter
+from drepr.writers.turtle_writer import TurtleWriter
 
 def main(resource_0):
 	resource_data_1 = read_source_csv(resource_0)
 	
-	writer_2 = RDFGraphWriter({"schema": "http://schema.org/", "drepr": "https://purl.org/drepr/1.0/", "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdfs": "http://www.w3.org/2000/01/rdf-schema#", "owl": "http://www.w3.org/2002/07/owl#", "xsd": "http://www.w3.org/2001/XMLSchema#"})
+	writer_2 = TurtleWriter({"schema": "http://schema.org/", "drepr": "https://purl.org/drepr/1.0/", "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdfs": "http://www.w3.org/2000/01/rdf-schema#", "owl": "http://www.w3.org/2002/07/owl#", "xsd": "http://www.w3.org/2001/XMLSchema#"})
 	
 	# Transform records of class schema:PostalAddress:1
 	start_3 = 1
