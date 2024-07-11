@@ -73,6 +73,6 @@ def test_program_generation(
     # x, y, z = compare.graph_diff(gold_g, pred_g)
     # print(list(x), list(y), list(z))
 
-    # assert compare.isomorphic(
-    #     gold_g, pred_g
-    # ), "The output of the generated program is different from the expected output"
+    assert compare.isomorphic(
+        gold_g, pred_g
+    ), "The output of the generated program is different from the expected output"

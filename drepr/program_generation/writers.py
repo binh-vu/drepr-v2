@@ -15,7 +15,7 @@ class Writer:
 
     def get_writer_clspath(self):
         if self.format == OutputFormat.TTL:
-            return f"drepr.writers.rdfgraph_writer.RDFGraphWriter"
+            return f"drepr.writers.turtle_writer.TurtleWriter"
         else:
             raise NotImplementedError()
 

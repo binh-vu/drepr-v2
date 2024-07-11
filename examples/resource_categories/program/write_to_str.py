@@ -1,11 +1,11 @@
 from drepr.readers.prelude import read_source_csv
-from drepr.writers.rdfgraph_writer import RDFGraphWriter
+from drepr.writers.turtle_writer import TurtleWriter
 
 def main(resource_0):
 	resource_data_1 = read_source_csv(resource_0)
 	
 	preprocess_0(resource_data_1)
-	writer_9 = RDFGraphWriter({"mndr": "https://minmod.isi.edu/resource/", "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdfs": "http://www.w3.org/2000/01/rdf-schema#", "owl": "http://www.w3.org/2002/07/owl#", "drepr": "https://purl.org/drepr/1.0/", "xsd": "http://www.w3.org/2001/XMLSchema#"})
+	writer_9 = TurtleWriter({"mndr": "https://minmod.isi.edu/resource/", "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdfs": "http://www.w3.org/2000/01/rdf-schema#", "owl": "http://www.w3.org/2002/07/owl#", "drepr": "https://purl.org/drepr/1.0/", "xsd": "http://www.w3.org/2001/XMLSchema#"})
 	
 	# Transform records of class mndr:ResourceReserveCategory:1
 	start_10 = 1

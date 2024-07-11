@@ -1,20 +1,32 @@
 from __future__ import annotations
 
+import os
+from io import StringIO
 from typing import Any, Optional
 
-from drepr.models.sm import DREPR_URI
-from drepr.writers.base import StreamClassWriter
 from rdflib import RDF, BNode, Graph, Literal, Namespace, URIRef
+
+from drepr.models.sm import DREPR_URI
+from drepr.utils.namespace_mixin import NamespaceManager
+from drepr.writers.base import StreamClassWriter
 
 SubjVal = str | tuple | int | bool
 
 
-class RDFGraphWriter(StreamClassWriter):
-    def __init__(self, prefixes: dict[str, str]):
-        self.g: Graph = Graph()
-        for prefix, ns in prefixes.items():
-            self.g.bind(prefix, Namespace(ns))
+class TurtleWriter(StreamClassWriter):
+    def __init__(self, prefixes: dict[str, str], normalize_uri: Optional[bool] = None):
+        if normalize_uri is None:
+            normalize_uri = bool(
+                int(os.environ.get("drepr.writer.turtle_writer.normalize_uri", "1"))
+            )
 
+        self.write_stream = []
+        if normalize_uri:
+            self.namespace_manager = NamespaceManager.from_prefix2ns(prefixes)
+            for prefix in prefixes:
+                self.write_stream.append(f"@prefix {prefix}: <{prefixes[prefix]}> .\n")
+        else:
+            self.namespace_manager = None
         self.written_records: dict[SubjVal, BNode | URIRef] = {}
         self.origin_subj: SubjVal = ""
         self.subj: Optional[URIRef | BNode] = None
@@ -46,7 +58,7 @@ class RDFGraphWriter(StreamClassWriter):
         if is_buffered:
             self.buffer = [(RDF.type, URIRef(class_uri))]
         else:
-            self.g.add((self.subj, RDF.type, URIRef(class_uri)))
+            self.write_triple(self.subj, RDF.type, URIRef(class_uri))
         self.is_buffered = is_buffered
         self.subj_has_data = False
 
@@ -57,8 +69,9 @@ class RDFGraphWriter(StreamClassWriter):
 
         if len(self.buffer) > 0:
             for pred, obj in self.buffer:
-                self.g.add((self.subj, pred, obj))
+                self.write_pred_obj(pred, obj)
             self.buffer = []
+        self.write_stream[-1] = " .\n"
         self.written_records[self.origin_subj] = self.subj
         self.subj = None
         self.subj_has_data = False
@@ -92,7 +105,7 @@ class RDFGraphWriter(StreamClassWriter):
             self.buffer.append((URIRef(predicate_id), value))
         else:
             assert self.subj is not None
-            self.g.add((self.subj, URIRef(predicate_id), value))
+            self.write_pred_obj(URIRef(predicate_id), value)
 
     def write_object_property(
         self,
@@ -110,10 +123,27 @@ class RDFGraphWriter(StreamClassWriter):
             self.buffer.append((URIRef(predicate_id), object))
         else:
             assert self.subj is not None
-            self.g.add((self.subj, URIRef(predicate_id), object))
+            self.write_pred_obj(URIRef(predicate_id), object)
 
     def write_to_string(self):
-        return self.g.serialize(format="ttl")
+        return "".join(self.write_stream)
 
     def write_to_file(self, filepath):
-        self.g.serialize(filepath, format="ttl")
+        with open(filepath, "w") as f:
+            for s in self.write_stream:
+                f.write(s)
+
+    def write_triple(self, subj: URIRef | BNode, pred, obj):
+        self.write_stream.append(subj.n3(self.namespace_manager))  # type: ignore
+        self.write_stream.append(" ")
+        self.write_stream.append(pred.n3(self.namespace_manager))
+        self.write_stream.append(" ")
+        self.write_stream.append(obj.n3(self.namespace_manager))
+        self.write_stream.append(" ;\n")
+
+    def write_pred_obj(self, pred, obj):
+        self.write_stream.append("\t")
+        self.write_stream.append(pred.n3(self.namespace_manager))
+        self.write_stream.append(" ")
+        self.write_stream.append(obj.n3(self.namespace_manager))
+        self.write_stream.append(" ;\n")
