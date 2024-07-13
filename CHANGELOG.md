@@ -1,10 +1,11 @@
 # Changelog
 
-## [Unreleased]
+## [1.5.2] - 2024-07-12
 
 ### Added
 
 - Version 3 of the language. Mostly to support inplace creating of new attributes and classes.
+- Add TurtleWriter and use it as the default writer for ttl format
 
 ### Fixed
 

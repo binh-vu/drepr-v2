@@ -4,11 +4,10 @@ import os
 from io import StringIO
 from typing import Any, Optional
 
-from rdflib import RDF, BNode, Graph, Literal, Namespace, URIRef
-
 from drepr.models.sm import DREPR_URI
 from drepr.utils.namespace_mixin import NamespaceManager
 from drepr.writers.base import StreamClassWriter
+from rdflib import RDF, BNode, Graph, Literal, Namespace, URIRef
 
 SubjVal = str | tuple | int | bool
 
@@ -24,7 +23,9 @@ class TurtleWriter(StreamClassWriter):
         if normalize_uri:
             self.namespace_manager = NamespaceManager.from_prefix2ns(prefixes)
             for prefix in prefixes:
-                self.write_stream.append(f"@prefix {prefix}: <{prefixes[prefix]}> .\n")
+                self.write_stream.append(
+                    f"@prefix {prefix}: <{prefixes[prefix]}> .\n\n"
+                )
         else:
             self.namespace_manager = None
         self.written_records: dict[SubjVal, BNode | URIRef] = {}
@@ -71,7 +72,7 @@ class TurtleWriter(StreamClassWriter):
             for pred, obj in self.buffer:
                 self.write_pred_obj(pred, obj)
             self.buffer = []
-        self.write_stream[-1] = " .\n"
+        self.write_stream[-1] = " .\n\n"
         self.written_records[self.origin_subj] = self.subj
         self.subj = None
         self.subj_has_data = False
