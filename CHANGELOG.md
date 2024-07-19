@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.3] - 2024-07-19
+
+### Fixed
+
+- Fix turtle writer (buffered record)
+
 ## [1.5.2] - 2024-07-12
 
 ### Added

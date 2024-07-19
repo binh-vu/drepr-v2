@@ -67,7 +67,10 @@ class TurtleWriter(StreamClassWriter):
             return
 
         if len(self.buffer) > 0:
-            for pred, obj in self.buffer:
+            pred, obj = self.buffer[0]
+            self.write_triple(self.subj, pred, obj)
+            for i in range(1, len(self.buffer)):
+                pred, obj = self.buffer[i]
                 self.write_pred_obj(pred, obj)
             self.buffer = []
         self.write_stream[-1] = " .\n\n"
