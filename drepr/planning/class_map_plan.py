@@ -333,6 +333,7 @@ class ClassMapPlan:
                             alignments=alignments,
                             predicate=e.get_abs_iri(desc.sm),
                             class_id=class_id,
+                            object_id=target.node_id,
                             is_optional=edges_optional[e.edge_id],
                             can_target_missing=edges_missing_values[e.edge_id],
                             use_attr_value=use_attr_value,
@@ -562,6 +563,7 @@ class BlankObject:
     alignments_cardinality: Cardinality
     predicate: str
     class_id: NodeId
+    object_id: NodeId
     is_optional: bool
     # whether an instance of the target class can be missing
     can_target_missing: bool

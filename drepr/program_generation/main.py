@@ -7,7 +7,6 @@ from typing import Callable
 
 from codegen.models import AST, PredefinedFn, Program, expr, stmt
 from codegen.models.var import DeferredVar
-
 from drepr.models.prelude import (
     DRepr,
     IndexExpr,
@@ -248,6 +247,7 @@ def gen_classplan_executor(
             if classplan_subject.use_attr_value:
                 get_subj_val = lambda ast: PredefinedFn.tuple(
                     [
+                        expr.ExprConstant(classplan.class_id),
                         expr.ExprConstant(
                             desc.get_attr_index_by_id(classplan_subject.attr.id)
                         ),
@@ -268,9 +268,10 @@ def gen_classplan_executor(
                 get_subj_val = lambda ast: (
                     PredefinedFn.tuple(
                         [
+                            expr.ExprConstant(classplan.class_id),
                             expr.ExprConstant(
                                 desc.get_attr_index_by_id(classplan_subject.attr.id)
-                            )
+                            ),
                         ]
                         + [
                             expr.ExprVar(
@@ -460,6 +461,7 @@ def gen_classprop_body(
         if classprop.use_attr_value:
             get_prop_val = lambda ast: PredefinedFn.tuple(
                 [
+                    expr.ExprConstant(classprop.object_id),
                     expr.ExprConstant(desc.get_attr_index_by_id(attr.id)),
                     expr.ExprVar(
                         program.get_var(
@@ -476,7 +478,10 @@ def gen_classprop_body(
         else:
             get_prop_val = lambda ast: (
                 PredefinedFn.tuple(
-                    [expr.ExprConstant(desc.get_attr_index_by_id(classprop.attr.id))]
+                    [
+                        expr.ExprConstant(classprop.object_id),
+                        expr.ExprConstant(desc.get_attr_index_by_id(classprop.attr.id)),
+                    ]
                     + [
                         expr.ExprVar(
                             program.get_var(

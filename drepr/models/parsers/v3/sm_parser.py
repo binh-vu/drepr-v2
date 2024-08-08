@@ -160,7 +160,11 @@ class SMParser:
         for class_id, class_conf in sm.items():
             self.parse_class(context, class_id, class_conf)
 
-        return SemanticModel(context.nodes, context.edges, prefixes)
+        sm = SemanticModel(context.nodes, context.edges, prefixes)
+        # print(sm.nodes)
+        # print(sm.edges)
+
+        return sm
 
     def parse_class(
         self,

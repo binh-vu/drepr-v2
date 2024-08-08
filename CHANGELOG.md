@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.5] - 2024-08-08
+
+### Fixed
+
+- Fix bug in writing blank objects from classes with same URIs
+
 ## [1.5.4] - 2024-08-08
 
 ### Fixed
