@@ -220,6 +220,8 @@ class DRepr:
                     f"Unknown prefix `{prefix}` of the "
                     f"ontology predicate {edge.label}"
                 )
+            assert edge.source_id in self.sm.nodes, edge
+            assert edge.target_id in self.sm.nodes, edge
 
     def to_lang_format(
         self, simplify: bool = True, use_json_path: bool = False

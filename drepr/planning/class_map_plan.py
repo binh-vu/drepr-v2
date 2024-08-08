@@ -298,6 +298,11 @@ class ClassMapPlan:
                     attribute = desc.get_attr_by_id(target_subj)
 
                     alignments = inference.get_alignments(subj, attribute.id)
+                    if len(alignments) == 0:
+                        # there is no alignment between the subj and attribute.id
+                        raise Exception(
+                            f"Cannot find alignment between {subj} and {attribute.id}"
+                        )
 
                     if target.is_blank_node(desc.sm):
                         if any(

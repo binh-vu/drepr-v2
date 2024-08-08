@@ -68,8 +68,15 @@ class Validator:
     @staticmethod
     def must_have(odict: dict, attr: str, error_msg: str):
         if attr not in odict:
+            try:
+                odict_str = orjson.dumps(
+                    odict, option=orjson.OPT_INDENT_2 | orjson.OPT_NON_STR_KEYS
+                ).decode()
+            except TypeError:
+                odict_str = str(odict)
+
             raise InputError(
-                f"{error_msg}\nERROR: The attribute `{attr}` is missing in the object: `{orjson.dumps(odict, option=orjson.OPT_INDENT_2).decode()}`"
+                f"{error_msg}\nERROR: The attribute `{attr}` is missing in the object: `{odict_str}`"
             )
 
     @staticmethod

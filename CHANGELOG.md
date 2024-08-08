@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.4] - 2024-08-08
+
+### Fixed
+
+- Update validators and error messages
+
 ## [1.5.3] - 2024-07-19
 
 ### Fixed

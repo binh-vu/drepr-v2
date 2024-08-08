@@ -563,6 +563,7 @@ class SMParser:
             self.parse_class(context, target_class_id, target)
         else:
             target_class_id = target
+
         context.edges[len(context.edges)] = Edge(
             len(context.edges),
             class_id,
