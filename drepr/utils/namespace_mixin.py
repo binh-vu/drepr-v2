@@ -31,7 +31,7 @@ class NamespaceMixin:
 
     def get_abs_iri(self, rel_iri: str) -> str:
         """Convert a relative IRI to an absolute IRI."""
-        assert self.is_rel_iri(rel_iri)
+        assert self.is_rel_iri(rel_iri), rel_iri
         return get_abs_iri(self.prefixes, rel_iri)
 
 
