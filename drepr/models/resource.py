@@ -90,3 +90,11 @@ class ResourceDataString(ResourceData):
                 self.value.decode() if isinstance(self.value, bytes) else self.value
             )
         }
+
+
+@dataclass
+class ResourceDataObject(ResourceData):
+    value: dict | list
+
+    def to_dict(self):
+        return {"object": self.value}

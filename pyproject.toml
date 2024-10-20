@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "drepr-v2"
-version = "1.5.6"
+version = "1.6.0"
 description = ""
 authors = ["Binh Vu <binh@toan2.com>"]
 readme = "README.md"
