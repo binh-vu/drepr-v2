@@ -3,12 +3,31 @@ from __future__ import annotations
 import os
 from typing import Any, Optional
 
+from rdflib import RDF, XSD, BNode, Literal, URIRef
+from rdflib.plugins.serializers.nt import NTSerializer, _quote_encode, _quoteLiteral
+
 from drepr.models.sm import DREPR_URI
 from drepr.utils.namespace_mixin import NamespaceManager
 from drepr.writers.base import StreamClassWriter
-from rdflib import RDF, BNode, Literal, URIRef
 
 SubjVal = str | tuple | int | bool
+XSD_string = XSD.string
+
+
+class MyLiteral(Literal):
+    def n3(self, namespace_manager: Optional[NamespaceManager] = None):
+        encoded = _quote_encode(self)
+
+        if self.language:
+            return "%s@%s" % (encoded, self.language)
+        elif self.datatype:
+            if namespace_manager is not None:
+                quoted_dt = namespace_manager.normalizeUri(self.datatype)
+            else:
+                quoted_dt = "<%s>" % self.datatype
+            return "%s^^%s" % (encoded, quoted_dt)
+        else:
+            return encoded
 
 
 class TurtleWriter(StreamClassWriter):
@@ -100,7 +119,7 @@ class TurtleWriter(StreamClassWriter):
                 or dtype == "http://www.w3.org/2001/XMLSchema#int"
             ):
                 value = int(float(value))
-            value = Literal(value, datatype=dtype)
+            value = MyLiteral(value, datatype=dtype)
 
         self.subj_has_data = True
         if self.is_buffered:
