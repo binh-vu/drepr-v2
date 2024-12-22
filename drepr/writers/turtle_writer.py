@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from typing import Any, Optional
 
+import orjson
 from rdflib import RDF, XSD, BNode, Literal, URIRef
 from rdflib.plugins.serializers.nt import NTSerializer, _quote_encode, _quoteLiteral
 
@@ -16,7 +17,7 @@ XSD_string = XSD.string
 
 class MyLiteral(Literal):
     def n3(self, namespace_manager: Optional[NamespaceManager] = None):
-        encoded = _quote_encode(self)
+        encoded = orjson.dumps(self).decode()
 
         if self.language:
             return "%s@%s" % (encoded, self.language)
