@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.6.2] - 2024-12-22
+
+### Fixed
+
+- Update the Turtle writer to avoid writing multiline strings to ensure compatibility with Virtuoso
+- Use `orjson.dumps` for proper string escaping, as `rdflib` does a poor job with N3 format
+
+## [1.6.0] - 2024-10-20
+
+### Added
+
+- Allow passing Python objects directly as resources when calling DRepr programmatically
+
 ## [1.5.5] - 2024-08-08
 
 ### Fixed

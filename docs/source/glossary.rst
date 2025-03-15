@@ -1,0 +1,1 @@
+.. |drepr| replace:: `D-REPR <https://drepr.readthedocs.io/>`__
