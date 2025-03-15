@@ -33,6 +33,7 @@ from drepr.program_generation.preprocessing import GenPreprocessing
 from drepr.program_generation.program_space import VarSpace
 from drepr.program_generation.writers import Writer
 from drepr.utils.misc import assert_true
+from slugify import slugify
 
 
 @dataclass
@@ -101,7 +102,7 @@ def gen_program(
         if len(attr.missing_values) > 0:
             main_fn.assign(
                 DeferredVar(
-                    name=f"{attr.id}_missing_values",
+                    name=f"{get_varname_for_attr(attr.id)}_missing_values",
                     key=VarSpace.attr_missing_values(attr.id),
                 ),
                 expr.ExprConstant(set(attr.missing_values)),
@@ -500,14 +501,21 @@ def gen_classprop_body(
             )
     elif isinstance(classprop, LiteralProp):
         get_prop_val = lambda ast: expr.ExprConstant(classprop.value)
+        attr = (
+            None  # we are not going to have an attribute because it is a static value
+        )
     else:
         assert isinstance(classprop, SingletonObject)
         get_prop_val = lambda ast: get_subj_val_for_static_class(
             classprop.target_class_id
         )
+        attr = (
+            None  # we are not going to have an attribute because it is a static value
+        )
 
     is_prop_val_not_missing: Callable[[AST], expr.Expr]
     if isinstance(classprop, DataProp):
+        assert attr is not None, "attr should not be None for non-static value"
         if len(attr.missing_values) == 0:
             # leverage the fact that if True will be optimized away
             is_prop_val_not_missing = lambda ast: expr.ExprConstant(True)
@@ -576,9 +584,10 @@ def gen_classprop_body(
                     )
                 )
             else:
+                assert attr is not None, "attr should not be None for non-static value"
                 if classprop.alignments_cardinality.is_star_to_many():
                     has_dataprop_val = DeferredVar(
-                        name=f"{attr.id}_has_value_d{len(attr.path.steps) - 1}",
+                        name=f"{get_varname_for_attr(attr.id)}_has_value_d{len(attr.path.steps) - 1}",
                         key=VarSpace.has_attr_value_dim(
                             attr.resource_id,
                             attr.id,
@@ -682,3 +691,10 @@ def get_subj_val_for_static_class(class_id):
     return PredefinedFn.tuple(
         [expr.ExprConstant("static-8172a"), expr.ExprConstant(class_id)]
     )
+
+
+def get_varname_for_attr(attr_id: str):
+    varname = slugify(attr_id).replace("-", "_")
+    if varname[0].isdigit():
+        varname = "a_" + varname
+    return varname

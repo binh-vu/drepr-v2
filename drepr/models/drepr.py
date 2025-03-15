@@ -8,8 +8,6 @@ from pathlib import Path
 from typing import Any, Optional, Union
 
 import orjson
-from ruamel.yaml import YAML
-
 from drepr.models.align import (
     AlignedStep,
     Alignment,
@@ -27,6 +25,7 @@ from drepr.models.preprocessing import PFilter, PMap, Preprocessing, PSplit, RMa
 from drepr.models.resource import CSVProp, Resource, ResourceType
 from drepr.models.sm import ClassNode, DataNode, LiteralNode, SemanticModel
 from drepr.utils.validator import InputError, Validator
+from ruamel.yaml import YAML
 
 yaml = YAML()
 yaml.Representer.add_representer(OrderedDict, yaml.Representer.represent_dict)
@@ -280,6 +279,11 @@ class DRepr:
 
     def has_attr(self, attr_id: str) -> bool:
         return any(a.id == attr_id for a in self.attrs)
+
+    def add_attr(self, attr: Attr):
+        if self.has_attr(attr.id):
+            raise KeyError(f"Attribute with id {attr.id} already exists")
+        self.attrs.append(attr)
 
     def get_attr_index_by_id(self, attr_id: str) -> int:
         for i, a in enumerate(self.attrs):

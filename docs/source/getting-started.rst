@@ -29,3 +29,7 @@ Transformation
 
 A preprocessing function may produce a new attribute or modify an existing attribute. When it produces a new attribute, we can optionally choose the resource ID or let the system generate the ID automatically.
 
+If we create a new attribute, the attribute ID will be the one you provided in the preprocessing step. If there is an attribute that is already defined with the same ID, the system will throw an error. The system will automatically assign the corresponding resource ID to the new attribute.
+
+Under the hood, these changes are implemented by modifying the D-REPR model. See :py:mod:`drepr.planning.class_map_plan.ClassesMapExecutionPlan.rewrite_desc_for_preprocessing_output` for more details.
+

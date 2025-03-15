@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.3] - 2025-03-15
+
+### Fixed
+
+- Avoid using attribute IDs as variable names since IDs can be numeric
+
 ## [1.6.2] - 2024-12-22
 
 ### Fixed

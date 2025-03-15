@@ -187,7 +187,7 @@ class ClassesMapExecutionPlan:
                     ),
                     missing_values=[None],
                 )
-                desc.attrs.append(newattr)
+                desc.add_attr(newattr)
             desc.add_resource(newresource)
 
         return desc
