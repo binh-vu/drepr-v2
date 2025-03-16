@@ -19,7 +19,7 @@ from drepr.program_generation.main import FileOutput, MemoryOutput, gen_program
 def convert(
     repr: DRepr | Path,
     resources: Mapping[str, Path | ResourceData],
-    progfile: Optional[Path] = None,
+    progfile: Optional[Path | str] = None,
     outfile: Optional[Path] = None,
     format: OutputFormat = OutputFormat.TTL,
     tmpdir: Path = Path("/tmp/drepr"),
@@ -39,6 +39,7 @@ def convert(
 
     prog = gen_program(exec_plan.desc, exec_plan, output, debuginfo).to_python()
     if progfile is not None:
+        progfile = Path(progfile)
         cleanup = False
 
     if progfile is not None:
