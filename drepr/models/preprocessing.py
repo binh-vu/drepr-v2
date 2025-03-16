@@ -80,6 +80,17 @@ class Preprocessing:
 
         return Preprocessing(type, value)
 
+    def set_output(self, output: POutput):
+        if self.type in (
+            PreprocessingType.pmap,
+            PreprocessingType.pfilter,
+            PreprocessingType.psplit,
+            PreprocessingType.rmap,
+        ):
+            self.value.output = output
+        else:
+            raise NotImplementedError(self.type)
+
     def get_output(self) -> Optional[POutput]:
         if self.type in (
             PreprocessingType.pmap,

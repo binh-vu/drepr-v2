@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import importlib.util
+from hashlib import sha256
 from pathlib import Path
-from typing import Mapping, Optional
+from typing import Literal, Mapping, Optional
 from uuid import uuid4
 
 from drepr.models.prelude import (
@@ -22,6 +23,7 @@ def convert(
     outfile: Optional[Path] = None,
     format: OutputFormat = OutputFormat.TTL,
     tmpdir: Path = Path("/tmp/drepr"),
+    tmp_idgen: Literal["uuid", "hash"] = "uuid",
     debuginfo: bool = False,
     cleanup: bool = True,
 ):
@@ -36,13 +38,18 @@ def convert(
         output = MemoryOutput(format)
 
     prog = gen_program(exec_plan.desc, exec_plan, output, debuginfo).to_python()
-    cleanup = progfile is None
+    if progfile is not None:
+        cleanup = False
+
     if progfile is not None:
         with open(progfile, "w") as f:
             f.write(prog)
     else:
         tmpdir.mkdir(parents=True, exist_ok=True)
-        unique_id = str(uuid4()).replace("-", "_")
+        if tmp_idgen == "uuid":
+            unique_id = str(uuid4()).replace("-", "_")
+        else:
+            unique_id = sha256(prog.encode()).hexdigest()
         progfile = tmpdir / f"main_{unique_id}.py"
         progfile.write_text(prog)
 

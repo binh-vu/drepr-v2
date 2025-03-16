@@ -5,10 +5,9 @@ from enum import Enum
 from sys import prefix
 from typing import Any, NamedTuple, Optional, TypeAlias, Union
 
-from rdflib import OWL, RDF, RDFS, XSD
-
 from drepr.models.attr import Attr, AttrId
 from drepr.utils.namespace_mixin import NamespaceMixin
+from rdflib import OWL, RDF, RDFS, XSD
 
 DREPR_URI = "https://purl.org/drepr/1.0/uri"
 DREPR_BLANK = "https://purl.org/drepr/1.0/blank"
@@ -196,20 +195,24 @@ class SemanticModel(NamespaceMixin):
         edges = {eid: Edge(**e) for eid, e in raw["edges"].items()}
         return SemanticModel(nodes, edges, raw["prefixes"])
 
-    def get_class_node(self, node_id: str) -> ClassNode:
+    def get_class_node(self, node_id: NodeId) -> ClassNode:
         node = self.nodes[node_id]
         if not isinstance(node, ClassNode):
             raise ValueError(f"The node {node_id} is not a class node")
         return node
 
-    def remove_node(self, node_id: str):
-        self.nodes.pop(node_id)
+    def remove_node(self, node_id: NodeId) -> Node:
+        node = self.nodes.pop(node_id)
         removed_edges = []
         for eid, e in self.edges.items():
             if e.source_id == node_id or e.target_id == node_id:
                 removed_edges.append(eid)
         for eid in removed_edges:
             self.edges.pop(eid)
+        return node
+
+    def remove_edge(self, edge_id: EdgeId):
+        return self.edges.pop(edge_id)
 
     def class2dict(self, class_id: str) -> dict[str, Union[list[int], int]]:
         """

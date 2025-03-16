@@ -4,12 +4,11 @@ import os
 from typing import Any, Optional
 
 import orjson
-from rdflib import RDF, XSD, BNode, Literal, URIRef
-from rdflib.plugins.serializers.nt import NTSerializer, _quote_encode, _quoteLiteral
-
 from drepr.models.sm import DREPR_URI
 from drepr.utils.namespace_mixin import NamespaceManager
 from drepr.writers.base import StreamClassWriter
+from rdflib import RDF, XSD, BNode, Literal, URIRef
+from rdflib.plugins.serializers.nt import NTSerializer, _quote_encode, _quoteLiteral
 
 SubjVal = str | tuple | int | bool
 XSD_string = XSD.string

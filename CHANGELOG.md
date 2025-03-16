@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.4] - 2025-03-16
+
+### Changed
+
+- Enhanced code ergonomics
+
 ## [1.6.3] - 2025-03-15
 
 ### Fixed
