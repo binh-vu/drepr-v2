@@ -21,7 +21,7 @@ def main(resource_0, output_file_1):
 			for deposit_type_uri_index_3_12 in range(start_10, end_11):
 				deposit_type_uri_value_3_13 = deposit_type_uri_value_2_9[deposit_type_uri_index_3_12]
 				deposit_type_uri_value_4_14 = deposit_type_uri_value_3_13["normalized_uri"]
-				writer_3.begin_record("https://minmod.isi.edu/resource/DepositTypeCandidate", (2, deposit_type_uri_index_1_7, deposit_type_uri_index_3_12), True, False)
+				writer_3.begin_record("https://minmod.isi.edu/resource/DepositTypeCandidate", ("mndr:DepositTypeCandidate:1", 2, deposit_type_uri_index_1_7, deposit_type_uri_index_3_12), True, False)
 				
 				# Retrieve value of data property: deposit_type_uri
 				if True:
@@ -36,7 +36,7 @@ def main(resource_0, output_file_1):
 	for site_name_index_1_18 in range(start_16, end_17):
 		site_name_value_1_19 = site_name_value_0_15[site_name_index_1_18]
 		site_name_value_2_20 = site_name_value_1_19["name"]
-		writer_3.begin_record("https://minmod.isi.edu/resource/MineralSite", (1, site_name_index_1_18), True, False)
+		writer_3.begin_record("https://minmod.isi.edu/resource/MineralSite", ("mndr:MineralSite:1", 1, site_name_index_1_18), True, False)
 		
 		# Retrieve value of data property: site_name
 		writer_3.write_data_property("https://minmod.isi.edu/resource/name", site_name_value_2_20, None)
@@ -61,8 +61,8 @@ def main(resource_0, output_file_1):
 			for deposit_type_uri_index_3_31 in range(start_29, end_30):
 				deposit_type_uri_value_3_32 = deposit_type_uri_value_2_28[deposit_type_uri_index_3_31]
 				deposit_type_uri_value_4_33 = deposit_type_uri_value_3_32["normalized_uri"]
-				if writer_3.has_written_record((2, deposit_type_uri_index_1_26, deposit_type_uri_index_3_31)):
-					writer_3.write_object_property("https://minmod.isi.edu/resource/deposit_type_candidate", (2, deposit_type_uri_index_1_26, deposit_type_uri_index_3_31), True, True, False)
+				if writer_3.has_written_record(("mndr:DepositTypeCandidate:1", 2, deposit_type_uri_index_1_26, deposit_type_uri_index_3_31)):
+					writer_3.write_object_property("https://minmod.isi.edu/resource/deposit_type_candidate", ("mndr:DepositTypeCandidate:1", 2, deposit_type_uri_index_1_26, deposit_type_uri_index_3_31), True, True, False)
 		
 		writer_3.end_record()
 	

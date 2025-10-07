@@ -12,7 +12,7 @@ def main(resource_0):
 	for street_index_0_5 in range(start_3, end_4):
 		street_value_0_6 = resource_data_1[street_index_0_5]
 		street_value_1_7 = street_value_0_6[3]
-		writer_2.begin_record("http://schema.org/PostalAddress", (3, street_index_0_5), True, False)
+		writer_2.begin_record("http://schema.org/PostalAddress", ("schema:PostalAddress:1", 3, street_index_0_5), True, False)
 		
 		# Retrieve value of data property: street
 		writer_2.write_data_property("http://schema.org/streetAddress", street_value_1_7, None)
@@ -61,7 +61,7 @@ def main(resource_0):
 		street_index_0_28 = id_index_0_19
 		street_value_0_29 = resource_data_1[street_index_0_28]
 		street_value_1_30 = street_value_0_29[3]
-		writer_2.write_object_property("http://schema.org/address", (3, street_index_0_28), False, True, False)
+		writer_2.write_object_property("http://schema.org/address", ("schema:PostalAddress:1", 3, street_index_0_28), False, True, False)
 		
 		writer_2.end_record()
 	

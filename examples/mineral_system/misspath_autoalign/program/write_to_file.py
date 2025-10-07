@@ -23,7 +23,7 @@ def main(resource_0, output_file_1):
 			for pathway_potential_dataset_name_index_5_17 in range(start_15, end_16):
 				pathway_potential_dataset_name_value_5_18 = pathway_potential_dataset_name_value_4_14[pathway_potential_dataset_name_index_5_17]
 				pathway_potential_dataset_name_value_6_19 = pathway_potential_dataset_name_value_5_18["name"]
-				writer_3.begin_record("https://minmod.isi.edu/resource/EvidenceLayer", (4, pathway_potential_dataset_name_index_1_7, pathway_potential_dataset_name_index_3_12, pathway_potential_dataset_name_index_5_17), True, False)
+				writer_3.begin_record("https://minmod.isi.edu/resource/EvidenceLayer", ("mndr:EvidenceLayer:2", 4, pathway_potential_dataset_name_index_1_7, pathway_potential_dataset_name_index_3_12, pathway_potential_dataset_name_index_5_17), True, False)
 				
 				# Retrieve value of data property: pathway_potential_dataset_name
 				writer_3.write_data_property("https://minmod.isi.edu/resource/name", pathway_potential_dataset_name_value_6_19, None)
@@ -241,7 +241,7 @@ def main(resource_0, output_file_1):
 			for pathway_id_reference_index_5_174 in range(start_172, end_173):
 				pathway_id_reference_value_5_175 = pathway_id_reference_value_4_171[pathway_id_reference_index_5_174]
 				pathway_id_reference_value_6_176 = pathway_id_reference_value_5_175["id"]
-				writer_3.begin_record("https://minmod.isi.edu/resource/Reference", (6, pathway_id_reference_index_1_164, pathway_id_reference_index_3_169, pathway_id_reference_index_5_174), True, False)
+				writer_3.begin_record("https://minmod.isi.edu/resource/Reference", ("mndr:Reference:2", 6, pathway_id_reference_index_1_164, pathway_id_reference_index_3_169, pathway_id_reference_index_5_174), True, False)
 				
 				# Retrieve value of data property: pathway_id_reference
 				writer_3.write_data_property("https://minmod.isi.edu/resource/date", pathway_id_reference_value_6_176, None)
@@ -274,7 +274,7 @@ def main(resource_0, output_file_1):
 		for pathway_criteria_index_3_196 in range(start_194, end_195):
 			pathway_criteria_value_3_197 = pathway_criteria_value_2_193[pathway_criteria_index_3_196]
 			pathway_criteria_value_4_198 = pathway_criteria_value_3_197["criteria"]
-			writer_3.begin_record("https://minmod.isi.edu/resource/MappableCriteria", (2, pathway_criteria_index_1_191, pathway_criteria_index_3_196), True, False)
+			writer_3.begin_record("https://minmod.isi.edu/resource/MappableCriteria", ("mndr:MappableCriteria:2", 2, pathway_criteria_index_1_191, pathway_criteria_index_3_196), True, False)
 			
 			# Retrieve value of data property: pathway_criteria
 			writer_3.write_data_property("https://minmod.isi.edu/resource/criteria", pathway_criteria_value_4_198, None)
@@ -302,7 +302,7 @@ def main(resource_0, output_file_1):
 			for pathway_potential_dataset_name_index_5_215 in range(start_213, end_214):
 				pathway_potential_dataset_name_value_5_216 = pathway_potential_dataset_name_value_4_212[pathway_potential_dataset_name_index_5_215]
 				pathway_potential_dataset_name_value_6_217 = pathway_potential_dataset_name_value_5_216["name"]
-				writer_3.write_object_property("https://minmod.isi.edu/resource/potential_dataset", (4, pathway_potential_dataset_name_index_1_207, pathway_potential_dataset_name_index_3_210, pathway_potential_dataset_name_index_5_215), True, True, False)
+				writer_3.write_object_property("https://minmod.isi.edu/resource/potential_dataset", ("mndr:EvidenceLayer:2", 4, pathway_potential_dataset_name_index_1_207, pathway_potential_dataset_name_index_3_210, pathway_potential_dataset_name_index_5_215), True, True, False)
 			
 			# Retrieve value of object property: pathway_id_reference
 			pathway_id_reference_value_0_218 = resource_data_2["MineralSystem"]
@@ -317,7 +317,7 @@ def main(resource_0, output_file_1):
 			for pathway_id_reference_index_5_227 in range(start_225, end_226):
 				pathway_id_reference_value_5_228 = pathway_id_reference_value_4_224[pathway_id_reference_index_5_227]
 				pathway_id_reference_value_6_229 = pathway_id_reference_value_5_228["id"]
-				writer_3.write_object_property("https://minmod.isi.edu/resource/supporting_references", (6, pathway_id_reference_index_1_219, pathway_id_reference_index_3_222, pathway_id_reference_index_5_227), True, True, False)
+				writer_3.write_object_property("https://minmod.isi.edu/resource/supporting_references", ("mndr:Reference:2", 6, pathway_id_reference_index_1_219, pathway_id_reference_index_3_222, pathway_id_reference_index_5_227), True, True, False)
 			
 			writer_3.end_record()
 	
@@ -328,7 +328,7 @@ def main(resource_0, output_file_1):
 	for ms_id_index_1_233 in range(start_231, end_232):
 		ms_id_value_1_234 = ms_id_value_0_230[ms_id_index_1_233]
 		ms_id_value_2_235 = ms_id_value_1_234["id"]
-		writer_3.begin_record("https://minmod.isi.edu/resource/MineralSystem", (0, ms_id_index_1_233), True, False)
+		writer_3.begin_record("https://minmod.isi.edu/resource/MineralSystem", ("mndr:MineralSystem:1", 0, ms_id_index_1_233), True, False)
 		
 		# Retrieve value of data property: ms_id
 		writer_3.write_data_property("https://minmod.isi.edu/resource/id", ms_id_value_2_235, None)
@@ -354,7 +354,7 @@ def main(resource_0, output_file_1):
 		for pathway_criteria_index_3_250 in range(start_248, end_249):
 			pathway_criteria_value_3_251 = pathway_criteria_value_2_247[pathway_criteria_index_3_250]
 			pathway_criteria_value_4_252 = pathway_criteria_value_3_251["criteria"]
-			writer_3.write_object_property("https://minmod.isi.edu/resource/pathway", (2, pathway_criteria_index_1_245, pathway_criteria_index_3_250), True, True, False)
+			writer_3.write_object_property("https://minmod.isi.edu/resource/pathway", ("mndr:MappableCriteria:2", 2, pathway_criteria_index_1_245, pathway_criteria_index_3_250), True, True, False)
 		
 		writer_3.end_record()
 	

@@ -21,7 +21,7 @@ def main(resource_0):
 			for deposit_type_uri_index_3_11 in range(start_9, end_10):
 				deposit_type_uri_value_3_12 = deposit_type_uri_value_2_8[deposit_type_uri_index_3_11]
 				deposit_type_uri_value_4_13 = deposit_type_uri_value_3_12["normalized_uri"]
-				writer_2.begin_record("https://minmod.isi.edu/resource/DepositTypeCandidate", (2, deposit_type_uri_index_1_6, deposit_type_uri_index_3_11), True, False)
+				writer_2.begin_record("https://minmod.isi.edu/resource/DepositTypeCandidate", ("mndr:DepositTypeCandidate:1", 2, deposit_type_uri_index_1_6, deposit_type_uri_index_3_11), True, False)
 				
 				# Retrieve value of data property: deposit_type_uri
 				if True:
@@ -36,7 +36,7 @@ def main(resource_0):
 	for site_name_index_1_17 in range(start_15, end_16):
 		site_name_value_1_18 = site_name_value_0_14[site_name_index_1_17]
 		site_name_value_2_19 = site_name_value_1_18["name"]
-		writer_2.begin_record("https://minmod.isi.edu/resource/MineralSite", (1, site_name_index_1_17), True, False)
+		writer_2.begin_record("https://minmod.isi.edu/resource/MineralSite", ("mndr:MineralSite:1", 1, site_name_index_1_17), True, False)
 		
 		# Retrieve value of data property: site_name
 		writer_2.write_data_property("https://minmod.isi.edu/resource/name", site_name_value_2_19, None)
@@ -61,8 +61,8 @@ def main(resource_0):
 			for deposit_type_uri_index_3_30 in range(start_28, end_29):
 				deposit_type_uri_value_3_31 = deposit_type_uri_value_2_27[deposit_type_uri_index_3_30]
 				deposit_type_uri_value_4_32 = deposit_type_uri_value_3_31["normalized_uri"]
-				if writer_2.has_written_record((2, deposit_type_uri_index_1_25, deposit_type_uri_index_3_30)):
-					writer_2.write_object_property("https://minmod.isi.edu/resource/deposit_type_candidate", (2, deposit_type_uri_index_1_25, deposit_type_uri_index_3_30), True, True, False)
+				if writer_2.has_written_record(("mndr:DepositTypeCandidate:1", 2, deposit_type_uri_index_1_25, deposit_type_uri_index_3_30)):
+					writer_2.write_object_property("https://minmod.isi.edu/resource/deposit_type_candidate", ("mndr:DepositTypeCandidate:1", 2, deposit_type_uri_index_1_25, deposit_type_uri_index_3_30), True, True, False)
 		
 		writer_2.end_record()
 	
