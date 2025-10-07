@@ -15,7 +15,7 @@ jobs:
       - name: setup dependencies
         run: |
           pip install uv twine
-          uv sync
+          uv sync --all-extras
       - name: run test
         run: uv run pytest -x
       - name: publish
