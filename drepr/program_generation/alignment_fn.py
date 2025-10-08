@@ -8,6 +8,7 @@ from drepr.models.align import IdenticalAlign
 from drepr.models.prelude import Alignment, Attr, DRepr, RangeAlignment
 from drepr.program_generation.predefined_fn import DReprPredefinedFn
 from drepr.program_generation.program_space import VarSpace
+from drepr.utils.misc import get_varname_for_attr
 
 
 class AlignmentFn:
@@ -177,7 +178,7 @@ class PathAccessor:
 
             # we do not need nested loop for index expression as we can just directly access the value
             c1 = DeferredVar(
-                name=f"{attr.id}_value_{dim}",
+                name=f"{get_varname_for_attr(attr.id)}_value_{dim}",
                 key=VarSpace.attr_value_dim(attr.resource_id, attr.id, dim),
             )
 
@@ -215,11 +216,11 @@ class PathAccessor:
 
         if isinstance(step, path.RangeExpr):
             itemindex = DeferredVar(
-                name=f"{attr.id}_index_{dim}",
+                name=f"{get_varname_for_attr(attr.id)}_index_{dim}",
                 key=VarSpace.attr_index_dim(attr.resource_id, attr.id, dim),
             )
             itemvalue = DeferredVar(
-                name=f"{attr.id}_value_{dim}",
+                name=f"{get_varname_for_attr(attr.id)}_value_{dim}",
                 key=VarSpace.attr_value_dim(attr.resource_id, attr.id, dim),
             )
 

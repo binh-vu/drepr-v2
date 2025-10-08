@@ -4,6 +4,7 @@ import functools
 from typing import Any, Callable, Optional, Sequence, TypeVar, Union
 
 import orjson
+from slugify import slugify
 
 V = TypeVar("V")
 F = TypeVar("F", bound=Callable)
@@ -93,3 +94,13 @@ def get_abs_iri(prefixes: dict[str, str], rel_iri: str) -> str:
             f"Cannot create absolute IRI because the prefix {prefix} does not exist"
         )
     return f"{prefixes[prefix]}{val}"
+
+
+def get_varname_for_attr(attr_id: str | int):
+    """Get variable name for the given attribute id"""
+    varname = slugify(str(attr_id)).replace("-", "_")
+    if len(varname) == 0:
+        return "emp_"
+    if varname[0].isdigit():
+        varname = "a_" + varname
+    return varname

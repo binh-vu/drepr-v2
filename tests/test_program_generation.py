@@ -4,11 +4,10 @@ import importlib.util
 from pathlib import Path
 
 import pytest
-from rdflib import Graph, compare
-
 from drepr.models.prelude import DRepr, OutputFormat
 from drepr.planning.class_map_plan import ClassesMapExecutionPlan
 from drepr.program_generation.main import FileOutput, MemoryOutput, gen_program
+from rdflib import Graph, compare
 from tests.conftest import DatasetExample
 
 
@@ -17,6 +16,7 @@ from tests.conftest import DatasetExample
     [
         "pseudo_people",
         "mineral_site/missing_values",
+        "mineral_site/invalid_variable_names",
         "mineral_system/misspath_autoalign",
         "resource_categories",
     ],

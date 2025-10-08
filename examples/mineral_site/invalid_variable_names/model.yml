@@ -1,0 +1,23 @@
+version: "2"
+resources: csv
+
+attributes:
+  2013:
+    path: [1.., 0]
+  country:
+    path: [1.., 1]
+  deposit_type:
+    path: [1.., 2]
+
+alignments:
+  - type: auto
+
+semantic_model:
+  mnr:MineralSite:1:
+    properties:
+      - [mnr:name, 2013]
+      - [mnr:country, country]
+      - [mnr:deposit_type, deposit_type]
+
+  prefixes:
+    mnr: https://minmod.isi.edu/resource/

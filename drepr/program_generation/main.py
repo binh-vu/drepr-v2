@@ -32,8 +32,7 @@ from drepr.program_generation.predefined_fn import DReprPredefinedFn
 from drepr.program_generation.preprocessing import GenPreprocessing
 from drepr.program_generation.program_space import VarSpace
 from drepr.program_generation.writers import Writer
-from drepr.utils.misc import assert_true
-from slugify import slugify
+from drepr.utils.misc import assert_true, get_varname_for_attr
 
 
 @dataclass
@@ -691,10 +690,3 @@ def get_subj_val_for_static_class(class_id):
     return PredefinedFn.tuple(
         [expr.ExprConstant("static-8172a"), expr.ExprConstant(class_id)]
     )
-
-
-def get_varname_for_attr(attr_id: str):
-    varname = slugify(attr_id).replace("-", "_")
-    if varname[0].isdigit():
-        varname = "a_" + varname
-    return varname
