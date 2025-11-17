@@ -25,23 +25,23 @@ class RDFGraphWriter(StreamClassWriter):
         # if the subject has URI, then it has data
         self.subj_has_data: bool = False
 
-    def has_written_record(self, subj: SubjVal) -> bool:
-        return subj in self.written_records
+    def has_written_record(self, subject: SubjVal) -> bool:
+        return subject in self.written_records
 
     def begin_record(
-        self, class_uri: str, subj: SubjVal, is_blank: bool, is_buffered: bool
+        self, class_uri: str, subject: SubjVal, is_blank: bool, is_buffered: bool
     ):
-        self.origin_subj = subj
+        self.origin_subj = subject
         if is_blank:
-            if subj in self.written_records:
-                self.subj = self.written_records[subj]
+            if subject in self.written_records:
+                self.subj = self.written_records[subject]
                 self.subj_has_data = True
             else:
                 self.subj = BNode()
                 self.subj_has_data = False
         else:
             # subj will be a string for URIRef
-            self.subj = URIRef(subj)  # type: ignore
+            self.subj = URIRef(subject)  # type: ignore
             self.subj_has_data = True
 
         if is_buffered:

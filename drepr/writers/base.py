@@ -5,11 +5,13 @@ from typing import Any
 
 class StreamClassWriter:
 
-    def has_written_record(self, class_id: str, subject: str) -> bool:
-        """Test if a record of a given class `class_id` has been written"""
+    def has_written_record(self, subject: str) -> bool:
+        """Test if a record of a given subject has been written"""
         ...
 
-    def begin_record(self, subject: str, is_blank: bool) -> bool:
+    def begin_record(
+        self, class_uri: str, subject: str, is_blank: bool, is_buffered: bool
+    ) -> bool:
         """
         Tell the writer that we are going to write a record, and we already have all information of the
         record to write.
@@ -17,6 +19,7 @@ class StreamClassWriter:
 
         # Arguments
 
+        * `class_uri` - the URI of the class that the record belongs to
         * `subject` - real id of the record, which is determined by the value of `drepr:uri` property
                                 of the record or generated randomly (if it's a blank node)
         * `is_blank` - whether this subject is a blank node or not
